@@ -1,0 +1,19 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Dependencies and generated output
+node_modules/
+dist/
+build/
+.next/
+coverage/
+
+# Local tooling
+.DS_Store
+*.log
+.idea/
+.vscode/
