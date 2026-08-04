@@ -255,6 +255,9 @@ test.describe("Claims Copilot demo", () => {
     expect(handlerChatBox!.width).toBeLessThanOrEqual(370);
     await page.getByRole("button", { name: "What happened while I was away?" }).click();
     await expect(page.locator(".chat-agent").last()).toContainText(/preparing a transparent customer request|prepared request is shown as sent/);
+    await page.getByLabel("Ask this claim agent").fill("What is the weather in Stockholm?");
+    await page.getByRole("button", { name: "Send question" }).click();
+    await expect(page.locator(".chat-agent").last()).toContainText("Can't answer that unfortunately, I'm only here as a demo piece.");
     await page.getByRole("button", { name: "Close case agent chat" }).click();
     await page.locator('[data-tour="source-damage"]').click();
     await expect(page.locator(".extractionLabel")).toHaveText("Agent observations");
@@ -275,6 +278,9 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.getByText("AI sent the preparation email")).toBeVisible({ timeout: 12_000 });
     await expect(page.locator(".writingIndicator")).toContainText("Customer is writing");
     await expect(page.locator(".communicationEntry").filter({ hasText: "Oh, my bad — I see now that it never uploaded" })).toBeVisible();
+    await expect(page.locator('[data-tour="source-rear-device-photo"]')).toContainText("Rear device photo.jpg");
+    await expect(page.getByAltText("Preview of Rear device photo.jpg")).toHaveAttribute("src", /rear-device-photo/);
+    await expect(page.locator('[data-tour="source-rear-device-photo"]')).toHaveClass(/sourceWorking/, { timeout: 7_000 });
     await expect(page.locator(".communicationEntry").filter({ hasText: "Thanks, Lina — I’ve received the photo" })).toBeVisible();
     await expect(page.getByText("Explore the claim before the final email arrives")).toBeVisible({ timeout: 22_000 });
 
@@ -291,6 +297,9 @@ test.describe("Claims Copilot demo", () => {
       "Missing photo attached",
       "Information needed to prepare your mobile phone claim",
     ]);
+    await expect(page.locator(".communicationEntry").first()).toHaveClass(/communicationExpanded/);
+    await page.locator('[data-tour="source-rear-device-photo"]').click();
+    await expect(page.locator(".sourceText")).toContainText("Rule: Rear view supplied: Confirmed");
 
     const expandedPhotoMessage = page.getByRole("button", { name: /Missing photo attached/ });
     await expandedPhotoMessage.click();
@@ -316,10 +325,11 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator(".communicationEntry").filter({ hasText: "Preparation completed" }).first()).toContainText("Your handler will have the prepared information needed");
     const completedExchange = await page.locator(".communicationEntry header strong").allTextContents();
     expect(completedExchange.slice(0, 3)).toEqual([
-      "Case ready for handler review",
       "Preparation completed",
+      "Case ready for handler review",
       "Updated estimate attached",
     ]);
+    await expect(page.locator(".communicationEntry").first()).toHaveClass(/communicationExpanded/);
 
     await page.getByRole("button", { name: "Reset case" }).click();
     await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
