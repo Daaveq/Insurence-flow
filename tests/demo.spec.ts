@@ -93,9 +93,11 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.getByRole("heading", { name: "No claim agent loaded" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Lina Berg/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Erik Holm/ })).toBeVisible();
+    await expect(page.locator(".claimRow")).toHaveCount(16);
 
-    await page.getByRole("button", { name: /Maja Nilsson/ }).click();
-    await expect(page.getByRole("status")).toContainText("not interactive");
+    const disabledClaim = page.locator(".claimRow-disabled").filter({ hasText: "Maja Nilsson" });
+    await disabledClaim.hover();
+    await expect(disabledClaim.getByRole("tooltip")).toContainText("only the first two work in this demo");
     await expect(page.getByRole("heading", { name: "No claim agent loaded" })).toBeVisible();
 
     await page.getByRole("button", { name: /Lina Berg/ }).click();
@@ -237,14 +239,14 @@ test.describe("Claims Copilot demo", () => {
       page.getByRole("heading", { name: "Email drafted for Lina Berg" }),
     ).toBeVisible();
     await expect(page.getByText("Claim preparation timeline")).toBeVisible();
-    await expect(page.getByText("Customer and repairer replied")).toBeVisible();
+    await expect(page.getByText("Evidence review")).toBeVisible();
+    await expect(page.getByText("Missing identifiers found")).toBeVisible();
+    await expect(page.getByText("Email ready for approval")).toBeVisible();
     await expect(page.getByText("Communication log")).toBeVisible();
-    await expect(page.getByText("Customer replied with photo")).toBeVisible();
-    await expect(page.getByText("Updated estimate received")).toBeVisible();
-    await expect(page.getByText("AI assistant").first()).toBeVisible();
-    await page.getByRole("button", { name: "Ask this agent" }).click();
+    await expect(page.getByText("Oh my bad, I see now it never uploaded")).toHaveCount(0);
+    await page.getByRole("button", { name: "Chat with this case agent" }).click();
     await page.getByRole("button", { name: "What happened while I was away?" }).click();
-    await expect(page.locator(".chat-agent").last()).toContainText("identified missing evidence");
+    await expect(page.locator(".chat-agent").last()).toContainText("waiting for handler approval");
     await page.getByRole("button", { name: "Audit log" }).click();
     await expect(page.getByLabel("Subject")).toHaveValue(
       "Your mobile phone claim",
@@ -265,8 +267,15 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator(".activityStep.stepLatest")).toContainText(
       "Draft the customer email",
     );
-    await page.getByRole("button", { name: "Approve draft" }).click();
-    await expect(page.getByText("The handler approved the email draft")).toBeVisible();
+    await page.getByRole("button", { name: "Approve & simulate send" }).click();
+    await expect(page.getByText("The handler approved the preparation email")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "The request is now waiting for the customer" })).toBeVisible();
+    await page.getByRole("button", { name: /Incoming email/ }).click();
+    await expect(page.getByText(/Oh, my bad — I see now that it never uploaded/)).toBeVisible();
+    await expect(page.getByText(/Thanks, Lina — I have received the photo/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Ready for handler review" })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/They came back to me — here is the updated estimate/)).toBeVisible();
+    await expect(page.getByText(/your handler will have the prepared information needed/)).toBeVisible();
 
     await page.getByRole("button", { name: "Reset case" }).click();
     await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
@@ -356,7 +365,7 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.getByText("Sent to Human Specialist Review")).toBeVisible();
     await expect(page.getByText("No claim decision, email, payment, or repair action was made.")).toBeVisible();
     await expect(page.getByText(/Email drafted for/)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Approve draft" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Approve & simulate send" })).toHaveCount(0);
 
     const marker = page.locator(".documentThreatMarker");
     await expect(marker).toContainText("Hidden text detected here");

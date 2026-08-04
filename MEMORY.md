@@ -10,12 +10,12 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 - Stack: Next.js 16.2.12, React 19.2.4, TypeScript, plain CSS, Lucide icons, and Playwright.
 - AI runtime: project-pinned Codex CLI 0.146.0 using the existing local ChatGPT login; no OpenAI API key or direct API integration.
 - GitHub repository: `git@github.com:Daaveq/Insurence-flow.git`.
-- Published branch: `main`; current task branch: `feat/prompt-injection-case`.
+- Published branch: `main`; current task branch: `feat/claim-preparation-flow`.
 
 ## Product Experience
 
-- The demo opens on a styled claims portfolio. The two real synthetic cases are the first clickable rows; six surrounding rows establish portfolio context but clearly report that they are non-interactive demo records. The former top case switcher is removed.
-- The backend remains dormant in portfolio view and explains that no agent is loaded. Opening a claim loads that case's fixed, bounded source packet and agent workspace.
+- The demo opens on a styled 16-row claims portfolio. The two real synthetic cases are the first clickable rows; the other 14 are larger, slightly greyed demo records whose non-interactive explanation appears on hover or keyboard focus. The former top case switcher is removed.
+- The backend is a narrow 220px dormant panel in portfolio view and explains that no agent is loaded. Opening a claim expands the interface to an approximately 50/50 split and loads only that case's fixed, bounded source packet and agent workspace.
 - The interface is a minimal split screen: the left half contains only the handler-facing claim, result, gaps, and human decisions; the right half exposes the agent backend.
 - The backend half is split vertically into a fixed-source file viewer and an explicit execution trace. Files are clickable, show their exact contents and output destination, automatically follow the source currently being read, and softly highlight every input the agent is actively working with.
 - Damage.jpg begins without image findings, and the model packet no longer contains a pre-authored damage description. The viewer is populated only from the live EVID-01 assessment, and reset removes those generated observations.
@@ -25,9 +25,9 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 - The generated repair-estimate rule review is rendered below the original white estimate. In Case 2 a red marker appears at the bottom of the estimate showing the exact hidden-text location and wording, with a separate red security review underneath.
 - Extracted fact citations open the source file that supports them. The front end prioritizes policy, incident, item, damage, and repair facts instead of displaying every returned field.
 - Reset Demo aborts an active request and restores results, approvals, trace, draft edits, and source selection to the initial state.
-- Each opened claim now includes a four-stage preparation timeline. The standard case shows evidence review, a clearly synthetic AI/customer/repairer follow-up exchange, and readiness for handler review; the malicious case shows communication blocked and specialist escalation.
-- Communications identify AI, customer, vendor, internal, and safety-control actors. The synthetic continuation does not send real email; the live generated customer draft remains editable and requires explicit handler approval.
-- The lower backend pane switches between the source-aware audit log and a case-scoped handler chat. The chat answers from fixed current-case context and preserves all human decision boundaries.
+- Each opened claim includes a detailed four-stage preparation timeline with visible sub-checks. The routine case moves from intake and evidence review through customer follow-up to handler handoff; the malicious case shows document safety checks, automation stop, and specialist handoff.
+- Communications identify AI, customer, vendor, internal, and safety-control actors. The routine flow pauses after the draft, requires explicit handler approval for a synthetic send, exposes a tester-triggered first incoming email, simulates a later estimate email, and then marks the case Ready for handler review. No real email is sent.
+- The lower backend pane switches between the source-aware audit log and a case-scoped handler chat. A persistent floating launcher makes the chat visible throughout the opened claim; its answers reflect the current preparation stage and preserve all human decision boundaries.
 - The Audit log does not expose private chain-of-thought. It records timestamps, involved sources, outputs, and a concise visible reason for each step.
 - All evidence images are synthetic. Case 1 uses `public/evidence/damaged-phone.png`; Case 2 uses `public/evidence/damaged-android-case2.png` and `public/evidence/receipt-case2.png`.
 - All customer, policy, merchant, repairer, and claim identifiers are fictional.
@@ -71,7 +71,7 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 - Remote review should use the production server (`npm run build`, then `npm run demo`) behind a dedicated tunnel. Exposing `next dev` can block development-runtime requests from the tunnel origin and leave the UI unresponsive.
 - `npm audit --omit=dev`: zero vulnerabilities after compatible `postcss` and `sharp` overrides.
 - Static Playwright desktop and mobile tests pass with no horizontal overflow and loaded customer evidence previews.
-- Browser tests pass for the ten-step tour, two-case selection, the separate Erik/Samsung evidence, exact prompt-injection location marker, fail-closed specialist referral, audit log, grouped source viewer, standard-case evidence reviews and email draft, responsive panes, handler approval, and reset.
+- Browser tests pass for the 16-row queue and hover-only demo guidance, responsive dormant/active pane layouts, detailed lifecycle checks, stage-aware agent chat, explicit synthetic-send approval, both simulated customer replies, handler-ready transition, the separate Erik/Samsung evidence, exact prompt-injection location marker, fail-closed specialist referral, audit log, grouped source viewer, and reset.
 - The live Playwright test passes using the real project-pinned Codex CLI and GPT-5.6 Luna with the receipt and damage images attached, and verifies the schema-approved email draft reaches the front end.
 - The latest verified standard-case Luna browser run completed in 32.7 seconds on this host; runtime may vary.
 - After the 2026-08-04 host restart, Playwright system libraries were unavailable and `install-deps` required an interactive sudo password. Static browser tests were reverified with non-root libraries unpacked under `/tmp/playwright-libs.N2AEkE`; a future clean host should install Playwright Chromium dependencies normally.
