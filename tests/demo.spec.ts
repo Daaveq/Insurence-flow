@@ -78,47 +78,32 @@ const mockResult = {
   auditNote: "No external action was taken.",
 };
 
-async function openDemo(page: Page) {
+async function openDemo(page: Page, caseName = "Lina Berg") {
   await page.goto("/");
-  await page.getByRole("button", { name: "Skip tour" }).click();
+  await page.getByRole("button", { name: new RegExp(caseName) }).first().click();
 }
 
 test.describe("Claims Copilot demo", () => {
-  test("introduces the complete demo with a guided spotlight tour", async ({ page }) => {
+  test("opens on the claims overview with no agent loaded", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
 
-    const dialog = page.getByRole("dialog", { name: "Demo introduction" });
-    await expect(dialog.getByRole("heading")).toHaveText("Welcome to the demo");
-    await expect(page.locator(".tourBackdrop")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Good morning, Alex" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Claims overview" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "No claim agent loaded" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Lina Berg/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Erik Holm/ })).toBeVisible();
 
-    const remainingSteps = [
-      { title: "The claims-handler side" },
-      { title: "The AI agent side" },
-      { title: "AGENT.md", sourceId: "agent" },
-      { title: "Rules.md", sourceId: "rules" },
-      { title: "Receipt.jpg", sourceId: "receipt" },
-      { title: "Damage.jpg", sourceId: "damage" },
-      { title: "Repair Estimate.pdf", sourceId: "repair-estimate" },
-      { title: "Reset the demo", target: "reset-demo" },
-      { title: "Run the real copilot", target: "run-copilot", spotlightCount: 2 },
-    ];
-    for (const step of remainingSteps) {
-      await dialog.getByRole("button", { name: "Next" }).click();
-      await expect(dialog.getByRole("heading")).toHaveText(step.title);
-      await expect(page.locator(".tourSpotlight")).toHaveCount(step.spotlightCount ?? 1);
-      if (step.sourceId) {
-        await expect(page.locator('[data-tour="source-' + step.sourceId + '"]')).toHaveAttribute("aria-pressed", "true");
-      }
-      if (step.target) {
-        await expect(page.locator('[data-tour="' + step.target + '"]')).toHaveCount(step.spotlightCount ?? 1);
-      }
-    }
+    await page.getByRole("button", { name: /Maja Nilsson/ }).click();
+    await expect(page.getByRole("status")).toContainText("not interactive");
+    await expect(page.getByRole("heading", { name: "No claim agent loaded" })).toBeVisible();
 
-    await expect(page.locator('[data-tour="run-copilot"]')).toHaveCount(2);
-    await dialog.getByRole("button", { name: "Explore demo" }).click();
-    await expect(dialog).toHaveCount(0);
+    await page.getByRole("button", { name: /Lina Berg/ }).click();
+    await expect(page.locator(".caseId")).toHaveText("IF-CLM-260803-1842");
+    await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
+    await expect(page.getByText("Bound to IF-CLM-260803-1842")).toBeVisible();
   });
+
   test("shows uploaded evidence and the grouped dark backend", async ({
     page,
   }) => {
@@ -172,8 +157,8 @@ test.describe("Claims Copilot demo", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openDemo(page);
 
-    await expect(page.getByRole("button", { name: "Reset demo" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Run copilot" }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "Reset case" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start preparation" }).first()).toBeVisible();
     await page.getByText("Agent inputs").scrollIntoViewIfNeeded();
     await expect(page.getByText("Agent inputs")).toBeVisible();
     await page.getByText("Audit log", { exact: true }).scrollIntoViewIfNeeded();
@@ -243,7 +228,7 @@ test.describe("Claims Copilot demo", () => {
     });
 
     await openDemo(page);
-    await page.getByRole("button", { name: "Run copilot" }).first().click();
+    await page.getByRole("button", { name: "Start preparation" }).first().click();
     await expect(page.getByRole("button", { name: /AGENT.md/ })).toHaveClass(/sourceWorking/);
     await expect(page.getByText("Working with now")).toBeVisible();
     releaseResponse();
@@ -251,6 +236,16 @@ test.describe("Claims Copilot demo", () => {
     await expect(
       page.getByRole("heading", { name: "Email drafted for Lina Berg" }),
     ).toBeVisible();
+    await expect(page.getByText("Claim preparation timeline")).toBeVisible();
+    await expect(page.getByText("Customer and repairer replied")).toBeVisible();
+    await expect(page.getByText("Communication log")).toBeVisible();
+    await expect(page.getByText("Customer replied with photo")).toBeVisible();
+    await expect(page.getByText("Updated estimate received")).toBeVisible();
+    await expect(page.getByText("AI assistant").first()).toBeVisible();
+    await page.getByRole("button", { name: "Ask this agent" }).click();
+    await page.getByRole("button", { name: "What happened while I was away?" }).click();
+    await expect(page.locator(".chat-agent").last()).toContainText("identified missing evidence");
+    await page.getByRole("button", { name: "Audit log" }).click();
     await expect(page.getByLabel("Subject")).toHaveValue(
       "Your mobile phone claim",
     );
@@ -273,8 +268,8 @@ test.describe("Claims Copilot demo", () => {
     await page.getByRole("button", { name: "Approve draft" }).click();
     await expect(page.getByText("The handler approved the email draft")).toBeVisible();
 
-    await page.getByRole("button", { name: "Reset demo" }).click();
-    await expect(page.getByRole("heading", { name: "Ready for review" })).toBeVisible();
+    await page.getByRole("button", { name: "Reset case" }).click();
+    await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Email drafted for Lina Berg" }),
     ).toHaveCount(0);
@@ -341,9 +336,9 @@ test.describe("Claims Copilot demo", () => {
       await route.fulfill({ status: 200, contentType: "application/x-ndjson", body });
     });
 
-    await openDemo(page);
-    await page.getByRole("button", { name: /Case 2.*Malicious document/ }).click();
-    await expect(page.getByText("IF-CLM-260805-2044")).toBeVisible();
+    await page.goto("/");
+    await page.getByRole("button", { name: /Erik Holm/ }).click();
+    await expect(page.locator(".caseId")).toHaveText("IF-CLM-260805-2044");
     await expect(page.getByText("Erik Holm")).toBeVisible();
     await expect(page.getByText(/Galaxy S24/)).toBeVisible();
 
@@ -355,7 +350,7 @@ test.describe("Claims Copilot demo", () => {
     await page.locator('[data-tour="source-repair-estimate"]').click();
     await expect(page.locator(".documentPreview")).not.toContainText("Ignore all previous instructions");
 
-    await page.getByRole("button", { name: "Run copilot" }).first().click();
+    await page.getByRole("button", { name: "Start preparation" }).first().click();
     await expect(page.getByText("Review stopped", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Untrusted instruction in Repair Estimate.pdf" })).toBeVisible();
     await expect(page.getByText("Sent to Human Specialist Review")).toBeVisible();
@@ -381,7 +376,7 @@ test.describe("Claims Copilot demo", () => {
     test.setTimeout(180_000);
 
     await openDemo(page);
-    await page.getByRole("button", { name: "Run copilot" }).first().click();
+    await page.getByRole("button", { name: "Start preparation" }).first().click();
     await expect(page.getByRole("heading", { name: "Email drafted for Lina Berg" })).toBeVisible({
       timeout: 150_000,
     });

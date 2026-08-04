@@ -14,16 +14,20 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 
 ## Product Experience
 
-- A two-option case selector switches between the fixed evidence-gap and malicious-document scenarios without accepting a browser prompt or path.
+- The demo opens on a styled claims portfolio. The two real synthetic cases are the first clickable rows; six surrounding rows establish portfolio context but clearly report that they are non-interactive demo records. The former top case switcher is removed.
+- The backend remains dormant in portfolio view and explains that no agent is loaded. Opening a claim loads that case's fixed, bounded source packet and agent workspace.
 - The interface is a minimal split screen: the left half contains only the handler-facing claim, result, gaps, and human decisions; the right half exposes the agent backend.
 - The backend half is split vertically into a fixed-source file viewer and an explicit execution trace. Files are clickable, show their exact contents and output destination, automatically follow the source currently being read, and softly highlight every input the agent is actively working with.
 - Damage.jpg begins without image findings, and the model packet no longer contains a pre-authored damage description. The viewer is populated only from the live EVID-01 assessment, and reset removes those generated observations.
 - Damage.jpg, Receipt.jpg, and Repair Estimate.pdf each receive a live agent review with exactly two checks: one confirmed and one not confirmed. Their three missing items form the evidence basis for the customer email.
 - Backend descriptions, generated source reviews, and the customer email use overlapping typewriter reveals. New trace events arrive after about 650 ms; four-character chunks appear every 18 ms and earlier descriptions may continue typing while the next step starts.
-- A first-run ten-step spotlight tour darkens the interface and introduces the demo, handler side, agent side, all five inputs, Reset, and both real Run copilot controls. Source selection follows the guide forwards, backwards, and by keyboard; the tour also supports Skip, Escape, and a mobile layout.
+- The first-run spotlight tour is currently disabled because the claims portfolio is now the demo entry point; its component remains available for a future walkthrough redesigned around the queue-first story.
 - The generated repair-estimate rule review is rendered below the original white estimate. In Case 2 a red marker appears at the bottom of the estimate showing the exact hidden-text location and wording, with a separate red security review underneath.
 - Extracted fact citations open the source file that supports them. The front end prioritizes policy, incident, item, damage, and repair facts instead of displaying every returned field.
 - Reset Demo aborts an active request and restores results, approvals, trace, draft edits, and source selection to the initial state.
+- Each opened claim now includes a four-stage preparation timeline. The standard case shows evidence review, a clearly synthetic AI/customer/repairer follow-up exchange, and readiness for handler review; the malicious case shows communication blocked and specialist escalation.
+- Communications identify AI, customer, vendor, internal, and safety-control actors. The synthetic continuation does not send real email; the live generated customer draft remains editable and requires explicit handler approval.
+- The lower backend pane switches between the source-aware audit log and a case-scoped handler chat. The chat answers from fixed current-case context and preserves all human decision boundaries.
 - The Audit log does not expose private chain-of-thought. It records timestamps, involved sources, outputs, and a concise visible reason for each step.
 - All evidence images are synthetic. Case 1 uses `public/evidence/damaged-phone.png`; Case 2 uses `public/evidence/damaged-android-case2.png` and `public/evidence/receipt-case2.png`.
 - All customer, policy, merchant, repairer, and claim identifiers are fictional.
@@ -109,6 +113,6 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 
 ## Next Steps
 
-- Review the damaged-phone demo with the user and refine the evaluator flow.
+- Review the new queue-first claim-preparation flow with the user and refine the evaluator path and synthetic communication pacing.
 - Review the prompt-injection case with the user, then add the water-damage case with missing documentation.
 - Add the sensitive or ambiguous escalation case last.

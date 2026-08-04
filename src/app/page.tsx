@@ -3,24 +3,32 @@
 import Image from "next/image";
 import {
   Activity,
+  ArrowLeft,
   ArrowRight,
   Bot,
   Check,
   CircleDashed,
+  Clock3,
   FileImage,
   FileText,
   Mail,
+  MessageCircle,
   Paperclip,
   Play,
   RotateCcw,
+  Search,
+  Send,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
+  UserRound,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { demoCases, type AnalysisResult, type CaseId, type DemoCase, type TraceEvent } from "@/lib/demo-case";
 
 type RunState = "idle" | "running" | "complete" | "error";
+type WorkspaceView = "portfolio" | "claim";
 type SourceGroup = "agent" | "customer";
 type SourceKind = "markdown" | "image" | "document";
 type SecurityFinding = { location: string; text: string };
@@ -66,6 +74,17 @@ const startingTrace: TraceEvent[] = [{
   input: "Run copilot",
   output: "POST /api/analyze",
 }];
+
+const portfolioClaims = [
+  { caseId: "standard" as const, claim: demoCases.standard.id, customer: demoCases.standard.customer.name, description: "Dropped mobile phone · missing evidence", received: "03 Aug · 09:42", preparation: "Ready to start", tone: "ready" },
+  { caseId: "injection" as const, claim: demoCases.injection.id, customer: demoCases.injection.customer.name, description: "Bicycle fall · document safety review", received: "05 Aug · 08:21", preparation: "Safety check required", tone: "attention" },
+  { claim: "IF-CLM-260805-1987", customer: "Maja Nilsson", description: "Water leak · kitchen flooring", received: "05 Aug · 07:58", preparation: "Collecting documents", tone: "working" },
+  { claim: "IF-CLM-260805-1931", customer: "Oskar Lind", description: "Bicycle theft · station parking", received: "05 Aug · 07:44", preparation: "Waiting for police report", tone: "waiting" },
+  { claim: "IF-CLM-260804-1876", customer: "Sara Ahmed", description: "Travel delay · missed connection", received: "04 Aug · 18:12", preparation: "Case prepared", tone: "complete" },
+  { claim: "IF-CLM-260804-1803", customer: "Johan Ek", description: "Cracked window · storm damage", received: "04 Aug · 16:49", preparation: "Handler decision needed", tone: "attention" },
+  { claim: "IF-CLM-260804-1742", customer: "Elin Borg", description: "Laptop damage · accidental drop", received: "04 Aug · 14:06", preparation: "Collecting information", tone: "working" },
+  { claim: "IF-CLM-260804-1698", customer: "Nils Persson", description: "Lost luggage · return journey", received: "04 Aug · 12:38", preparation: "Customer replied", tone: "complete" },
+];
 
 const uploads = [
   { id: "receipt", name: "Receipt.jpg", detail: "Purchase proof", icon: FileImage },
@@ -389,8 +408,9 @@ function TypewriterText({ text, animate }: { text: string; animate: boolean }) {
 }
 
 export default function Home() {
-  const [selectedCaseId, setSelectedCaseId] = useState<CaseId>("standard");
-  const [tourStep, setTourStep] = useState(0);
+  const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("portfolio");
+  const [selectedCaseId, setSelectedCaseId] = useState<CaseId | null>(null);
+  const [tourStep, setTourStep] = useState(tourSteps.length);
   const [runState, setRunState] = useState<RunState>("idle");
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [trace, setTrace] = useState<TraceEvent[]>(idleTrace);
@@ -410,6 +430,7 @@ export default function Home() {
   const requestVersion = useRef(0);
 
   useEffect(() => {
+    if (!selectedCaseId) return;
     const controller = new AbortController();
     fetch("/api/sources?case=" + selectedCaseId, { signal: controller.signal })
       .then((response) => {
@@ -428,7 +449,7 @@ export default function Home() {
     return () => controller.abort();
   }, [selectedCaseId]);
 
-  const demoCase = demoCases[selectedCaseId];
+  const demoCase = selectedCaseId ? demoCases[selectedCaseId] : null;
   const selectedSource = useMemo(
     () => sources.find((source) => source.id === selectedSourceId),
     [selectedSourceId, sources],
@@ -462,15 +483,26 @@ export default function Home() {
   };
 
   const selectCase = (caseId: CaseId) => {
-    if (caseId === selectedCaseId || runState === "running") return;
+    if (runState === "running") return;
     resetDemo();
     initialSources.current = [];
     setSources([]);
     setSourceError("");
     setSelectedCaseId(caseId);
+    setWorkspaceView("claim");
+  };
+
+  const returnToPortfolio = () => {
+    resetDemo();
+    initialSources.current = [];
+    setSources([]);
+    setSourceError("");
+    setSelectedCaseId(null);
+    setWorkspaceView("portfolio");
   };
 
   const runAnalysis = async () => {
+    if (!selectedCaseId) return;
     analysisRequest.current?.abort();
     const controller = new AbortController();
     analysisRequest.current = controller;
@@ -607,46 +639,48 @@ export default function Home() {
           <div className="brandMark" aria-hidden="true">if</div>
           <div><strong>Claims Copilot</strong><span>Synthetic damaged-phone demo</span></div>
         </div>
-        <nav className="caseSwitcher" aria-label="Demo case">
-          {(Object.keys(demoCases) as CaseId[]).map((caseId, index) => (
-            <button
-              aria-pressed={selectedCaseId === caseId}
-              disabled={runState === "running"}
-              key={caseId}
-              onClick={() => selectCase(caseId)}
-            >
-              <span>Case {index + 1}</span>
-              <strong>{caseId === "standard" ? "Evidence gaps" : "Malicious document"}</strong>
-            </button>
-          ))}
-        </nav>
+        <div className="workspaceCrumb">
+          <span>{workspaceView === "portfolio" ? "Claims overview" : "Active claim"}</span>
+          <strong>{demoCase?.id ?? "Nordic Digital Claims"}</strong>
+        </div>
         <div className="headerActions">
-          <RunStatus state={runState} />
-          <button data-tour="reset-demo" className="secondaryButton" onClick={resetDemo}><RotateCcw size={16} />Reset demo</button>
-          <button data-tour="run-copilot" className="primaryButton" onClick={runAnalysis} disabled={runState === "running"}>
-            {runState === "running" ? <CircleDashed className="spin" size={16} /> : <Play size={16} fill="currentColor" />}
-            {runState === "running" ? "Analysing" : runState === "complete" ? "Run again" : "Run copilot"}
-          </button>
+          {workspaceView === "claim" && <>
+            <RunStatus state={runState} />
+            <button data-tour="reset-demo" className="secondaryButton" onClick={resetDemo}><RotateCcw size={16} />Reset case</button>
+            <button data-tour="run-copilot" className="primaryButton" onClick={runAnalysis} disabled={runState === "running"}>
+              {runState === "running" ? <CircleDashed className="spin" size={16} /> : <Play size={16} fill="currentColor" />}
+              {runState === "running" ? "Preparing" : runState === "complete" ? "Run again" : "Start preparation"}
+            </button>
+          </>}
         </div>
       </header>
 
       <main className="demoSplit">
         <section data-tour="handler-side" className="frontPanel" aria-label="Front end handler view">
-          <PanelHeader label="Front end" title="Damage claim" detail={demoCase.scenarioLabel} />
-          <div className="frontScroll">
-            <CaseSummary demoCase={demoCase} showSource={showSource} />
-            <FrontEndState
-              state={runState} analysis={analysis} error={error} trace={trace}
-              runAnalysis={runAnalysis} draftSubject={draftSubject} draftBody={draftBody}
-              setDraftSubject={setDraftSubject} setDraftBody={setDraftBody}
-              draftIsTyping={draftIsTyping} draftApproved={draftApproved} approveDraft={approveDraft}
-              demoCase={demoCase} securityStop={securityStop}
-            />
-          </div>
+          {workspaceView === "portfolio" || !demoCase ? (
+            <ClaimsOverview selectCase={selectCase} />
+          ) : <>
+            <div className="claimPanelHeader">
+              <button className="backButton" onClick={returnToPortfolio}><ArrowLeft size={15} />All claims</button>
+              <PanelHeader label="Front end" title="Claim preparation" detail={demoCase.scenarioLabel} />
+            </div>
+            <div className="frontScroll">
+              <CaseSummary demoCase={demoCase} showSource={showSource} />
+              <ClaimTimeline demoCase={demoCase} state={runState} securityStop={securityStop} />
+              <FrontEndState
+                state={runState} analysis={analysis} error={error} trace={trace}
+                runAnalysis={runAnalysis} draftSubject={draftSubject} draftBody={draftBody}
+                setDraftSubject={setDraftSubject} setDraftBody={setDraftBody}
+                draftIsTyping={draftIsTyping} draftApproved={draftApproved} approveDraft={approveDraft}
+                demoCase={demoCase} securityStop={securityStop}
+              />
+              <CommunicationLog demoCase={demoCase} state={runState} draftBody={draftBody} securityStop={securityStop} />
+            </div>
+          </>}
         </section>
 
         <aside data-tour="agent-side" className="backendPanel" aria-label="Back end agent view">
-          <SourcePane
+          {workspaceView === "portfolio" || !demoCase ? <DormantAgent /> : <><SourcePane
             sources={sources}
             selectedSource={selectedSource}
             selectedSourceId={selectedSourceId}
@@ -655,7 +689,7 @@ export default function Home() {
             sourceError={sourceError}
             selectSource={setSelectedSourceId}
           />
-          <ActivityPane trace={trace} state={runState} />
+          <ActivityPane trace={trace} state={runState} demoCase={demoCase} analysis={analysis} securityStop={securityStop} /></>}
         </aside>
       </main>
       <DemoTour
@@ -664,6 +698,144 @@ export default function Home() {
         setStepIndex={navigateTour}
       />
     </div>
+  );
+}
+
+function ClaimsOverview({ selectCase }: { selectCase: (caseId: CaseId) => void }) {
+  const [notice, setNotice] = useState("");
+
+  return (
+    <div className="claimsOverview">
+      <header className="overviewHero">
+        <div>
+          <span>Claims workspace</span>
+          <h1>Good morning, Alex</h1>
+          <p>AI agents prepare new claims while handlers focus on decisions that require judgment.</p>
+        </div>
+        <div className="overviewMetric"><strong>8</strong><span>Open claims</span><small>2 available in this demo</small></div>
+      </header>
+      <div className="overviewTools">
+        <label><Search size={14} /><input aria-label="Search claims" placeholder="Search claims" /></label>
+        <div><span><Sparkles size={13} />3 agents preparing cases</span><span>2 need human attention</span></div>
+      </div>
+      {notice && <div className="demoNotice" role="status">{notice}</div>}
+      <section className="claimQueue" aria-label="Claims overview">
+        <header>
+          <span>Claim and customer</span><span>Description</span><span>Received</span><span>Preparation status</span><span />
+        </header>
+        {portfolioClaims.map((claim, index) => {
+          const caseId = "caseId" in claim ? claim.caseId : undefined;
+          const isInteractive = Boolean(caseId);
+          return (
+            <button
+              className={isInteractive ? "claimRow claimRow-active" : "claimRow"}
+              key={claim.claim}
+              onClick={() => {
+                if (caseId) selectCase(caseId);
+                else setNotice("This claim is not interactive — it is part of the demo portfolio.");
+              }}
+            >
+              <span className="claimPerson"><strong>{claim.customer}</strong><small>{claim.claim}</small></span>
+              <span className="claimDescription">{claim.description}{isInteractive && <small>Demo case {index + 1} · Open claim</small>}</span>
+              <span className="claimReceived">{claim.received}</span>
+              <span className={"preparationPill preparation-" + claim.tone}><i />{claim.preparation}</span>
+              <span className="claimOpen">{isInteractive ? <ArrowRight size={15} /> : <small>Demo only</small>}</span>
+            </button>
+          );
+        })}
+      </section>
+      <footer className="overviewFootnote"><ShieldCheck size={14} />AI preparation never approves, denies, prices, or pays a claim. Human decisions stay with the handler.</footer>
+    </div>
+  );
+}
+
+function DormantAgent() {
+  return (
+    <section className="dormantAgent">
+      <div className="dormantMark"><Bot size={28} /></div>
+      <span>Agent workspace</span>
+      <h2>No claim agent loaded</h2>
+      <p>Select one of the two available claims. Its own bounded agent, case files, rules, and audit history will load here.</p>
+      <div><i /><span>Portfolio view is read-only</span></div>
+    </section>
+  );
+}
+
+function ClaimTimeline({ demoCase, state, securityStop }: {
+  demoCase: DemoCase;
+  state: RunState;
+  securityStop: SecurityStop | null;
+}) {
+  const isInjection = demoCase === demoCases.injection;
+  const steps = isInjection
+    ? [
+        { label: "Claim received", detail: "Form and uploads captured", status: "complete" },
+        { label: "Safety inspection", detail: securityStop ? "Untrusted instruction found" : state === "idle" ? "Waiting to start" : "Inspecting document text", status: securityStop ? "warning" : state === "idle" ? "waiting" : "active" },
+        { label: "Customer contact", detail: securityStop ? "Blocked before communication" : "Not started", status: securityStop ? "blocked" : "waiting" },
+        { label: "Human review", detail: securityStop ? "Specialist escalation" : "Not started", status: securityStop ? "active" : "waiting" },
+      ]
+    : [
+        { label: "Claim received", detail: "Form and uploads captured", status: "complete" },
+        { label: "Evidence checked", detail: state === "idle" ? "Waiting to start" : "Gaps identified", status: state === "idle" ? "waiting" : "complete" },
+        { label: "Information collected", detail: state === "complete" ? "Customer and repairer replied" : "Not started", status: state === "complete" ? "complete" : state === "running" ? "active" : "waiting" },
+        { label: "Ready for handler", detail: state === "complete" ? "Decision points prepared" : "Not ready", status: state === "complete" ? "ready" : "waiting" },
+      ];
+
+  return (
+    <section className="claimTimeline">
+      <header><div><Clock3 size={15} /><strong>Claim preparation timeline</strong></div><span>AI work and human decisions stay visible</span></header>
+      <div className="timelineSteps">
+        {steps.map((step, index) => (
+          <article className={"timelineStep timeline-" + step.status} key={step.label}>
+            <span className="timelineNode">{step.status === "complete" || step.status === "ready" ? <Check size={11} /> : index + 1}</span>
+            <div><strong>{step.label}</strong><small>{step.detail}</small></div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CommunicationLog({ demoCase, state, draftBody, securityStop }: {
+  demoCase: DemoCase;
+  state: RunState;
+  draftBody: string;
+  securityStop: SecurityStop | null;
+}) {
+  const isInjection = demoCase === demoCases.injection;
+  const standardMessages = state === "complete" ? [
+    { actor: "AI", direction: "Outgoing", time: "09:45", title: "Missing information requested", body: draftBody || "Requested the missing rear photo and matching device identifier.", tone: "ai" },
+    { actor: demoCase.customer.name, direction: "Incoming", time: "10:12", title: "Customer replied with photo", body: "Oh, my bad — I see now that the second photo never uploaded. Here it is. I have asked the repairer to add the IMEI to the estimate; an update is coming soon.", tone: "human" },
+    { actor: "AI", direction: "Outgoing", time: "10:13", title: "Receipt confirmed", body: "Thanks, Lina. I have added the photo to your claim. I will keep preparing the case and watch for the updated estimate. I cannot make a decision on the claim; a handler will review it.", tone: "ai" },
+    { actor: "City Mobile Repair", direction: "Incoming", time: "11:06", title: "Updated estimate received", body: "Revised estimate received with the device IMEI included.", tone: "external" },
+    { actor: "AI", direction: "Internal", time: "11:07", title: "Case prepared for handler", body: "Requested evidence collected and associated with the claim. No coverage, compensation, or repair decision was made.", tone: "system" },
+  ] : [];
+  const messages = isInjection && securityStop ? [
+    { actor: "Safety control", direction: "Internal", time: "08:22", title: "All automated communication stopped", body: "An untrusted instruction was detected in the repair estimate. No customer or vendor message was created or sent.", tone: "security" },
+  ] : standardMessages;
+
+  return (
+    <section className="communicationLog">
+      <header>
+        <div><MessageCircle size={15} /><strong>Communication log</strong></div>
+        <span>{messages.length ? messages.length + " entries" : "No agent communication yet"}</span>
+      </header>
+      {!messages.length ? (
+        <div className="emptyCommunications"><Mail size={18} /><p>The case agent has not contacted anyone. Communications will appear here with a clear AI or human identity.</p></div>
+      ) : <div className="communicationEntries">
+        {messages.map((message) => (
+          <article className={"communicationEntry communication-" + message.tone} key={message.time + message.title}>
+            <span className="actorIcon">{message.tone === "ai" ? <Bot size={14} /> : message.tone === "human" ? <UserRound size={14} /> : message.tone === "security" ? <ShieldAlert size={14} /> : <Mail size={14} />}</span>
+            <div>
+              <header><strong>{message.title}</strong><time>{message.time}</time></header>
+              <div className="communicationMeta"><span>{message.actor}</span><i>{message.direction}</i>{message.tone === "ai" && <em>AI assistant</em>}</div>
+              <p>{message.body}</p>
+            </div>
+          </article>
+        ))}
+      </div>}
+      <footer><ShieldCheck size={13} />Synthetic demo exchange · no real email is sent</footer>
+    </section>
   );
 }
 
@@ -718,7 +890,7 @@ function FrontEndState({
   securityStop: SecurityStop | null;
 }) {
   if (state === "idle") return (
-    <section className="startState"><Bot size={23} /><div><h2>Ready for review</h2><p>The agent will read the five files shown on the right.</p></div><button data-tour="run-copilot" className="primaryButton" onClick={runAnalysis}><Play size={16} fill="currentColor" />Run copilot</button></section>
+    <section className="startState"><Bot size={23} /><div><h2>Ready for preparation</h2><p>This claim&apos;s agent will inspect the five bounded inputs and prepare the file before handler assignment.</p></div><button data-tour="run-copilot" className="primaryButton" onClick={runAnalysis}><Play size={16} fill="currentColor" />Start preparation</button></section>
   );
   if (securityStop) return (
     <section className="securityStopResult" aria-live="polite">
@@ -881,28 +1053,88 @@ function SourcePane({ sources, selectedSource, selectedSourceId, workingSourceId
   );
 }
 
-function ActivityPane({ trace, state }: { trace: TraceEvent[]; state: RunState }) {
+function ActivityPane({ trace, state, demoCase, analysis, securityStop }: {
+  trace: TraceEvent[];
+  state: RunState;
+  demoCase: DemoCase;
+  analysis: AnalysisResult | null;
+  securityStop: SecurityStop | null;
+}) {
+  const [tab, setTab] = useState<"audit" | "chat">("audit");
   const endRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [trace.length, state]);
+    if (tab === "audit") endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [trace.length, state, tab]);
+
   return (
     <section className="activityPane">
-      <PanelHeader label="Back end" title="Audit log" detail="What happened and why" />
-      <div className="activityList" aria-live="polite">
-        {trace.map((event, index) => (
-          <article className={`activityStep step-${event.status} ${index === trace.length - 1 ? "stepLatest" : ""}`} key={event.id}>
-            <span className="stepNumber">{event.status === "complete" ? <Check size={12} /> : index + 1}</span>
-            <div><header><strong>{event.title}</strong><time>{event.timestamp}</time></header>
-              <p aria-label={event.detail}><b>Why</b><span aria-hidden="true"><TypewriterText text={event.detail} animate={state === "running"} /></span></p>
-              {(event.input || event.output) && <div className="dataFlow"><span>{event.input}</span><ArrowRight size={12} /><strong>{event.output}</strong></div>}
-            </div>
-          </article>
-        ))}
-        {state === "running" && <div className="waitingLine"><Activity size={14} />Waiting for the next runtime event</div>}
-        <div ref={endRef} aria-hidden="true" />
+      <div className="agentPaneTabs">
+        <button className={tab === "audit" ? "active" : ""} onClick={() => setTab("audit")}><Activity size={13} />Audit log</button>
+        <button className={tab === "chat" ? "active" : ""} onClick={() => setTab("chat")}><MessageCircle size={13} />Ask this agent</button>
+        <span>Bound to {demoCase.id}</span>
       </div>
-      <footer className="backendGuardrail"><ShieldCheck size={15} />Timestamped · source-aware · reasons recorded</footer>
+      {tab === "audit" ? <>
+        <div className="activityList" aria-live="polite">
+          {trace.map((event, index) => (
+            <article className={"activityStep step-" + event.status + (index === trace.length - 1 ? " stepLatest" : "")} key={event.id}>
+              <span className="stepNumber">{event.status === "complete" ? <Check size={12} /> : index + 1}</span>
+              <div><header><strong>{event.title}</strong><time>{event.timestamp}</time></header>
+                <p aria-label={event.detail}><b>Why</b><span aria-hidden="true"><TypewriterText text={event.detail} animate={state === "running"} /></span></p>
+                {(event.input || event.output) && <div className="dataFlow"><span>{event.input}</span><ArrowRight size={12} /><strong>{event.output}</strong></div>}
+              </div>
+            </article>
+          ))}
+          {state === "running" && <div className="waitingLine"><Activity size={14} />Waiting for the next runtime event</div>}
+          <div ref={endRef} aria-hidden="true" />
+        </div>
+        <footer className="backendGuardrail"><ShieldCheck size={15} />Timestamped · source-aware · reasons recorded</footer>
+      </> : <AgentChat demoCase={demoCase} state={state} analysis={analysis} securityStop={securityStop} />}
     </section>
+  );
+}
+
+function AgentChat({ demoCase, state, analysis, securityStop }: {
+  demoCase: DemoCase;
+  state: RunState;
+  analysis: AnalysisResult | null;
+  securityStop: SecurityStop | null;
+}) {
+  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Array<{ role: "handler" | "agent"; body: string }>>([]);
+  const suggestions = securityStop
+    ? ["Why did you stop?", "What can the handler do next?"]
+    : ["What happened while I was away?", "What still needs a human decision?"];
+
+  const answer = (question: string) => {
+    const lower = question.toLowerCase();
+    if (securityStop) {
+      if (/why|stop|happen|attack/.test(lower)) return "I found hidden machine-readable text in the repair estimate instructing me to approve the claim and conceal that action. Customer evidence cannot change my instructions, so I stopped before model analysis or communication and preserved the finding for specialist review.";
+      return "A human specialist should inspect the quarantined estimate and request a clean replacement through an approved channel. I have made no claim decision and contacted no one.";
+    }
+    if (state !== "complete") return "I have only the current claim packet and have not completed the preparation pass yet. Start preparation to let me inspect the evidence and build the case history.";
+    if (/human|decision|need|next/.test(lower)) return "The evidence collection is prepared, but coverage, compensation, deductible, repair authorization, and the final claim outcome remain human decisions.";
+    return (analysis?.caseSummary ? analysis.caseSummary + " " : "") + "I identified missing evidence, prepared a transparent request, recorded the customer's reply, associated the updated estimate, and left the case ready for handler review. The communication log shows the complete synthetic exchange.";
+  };
+
+  const submit = (question: string) => {
+    const value = question.trim();
+    if (!value) return;
+    setMessages((current) => [...current, { role: "handler", body: value }, { role: "agent", body: answer(value) }]);
+    setInput("");
+  };
+
+  return (
+    <div className="agentChat">
+      <header><div><Bot size={18} /><span><strong>{demoCase.customer.name}&apos;s claim agent</strong><small>Current claim and relevant rules only</small></span></div><i>Case scoped</i></header>
+      <div className="chatMessages" aria-live="polite">
+        {!messages.length && <div className="chatWelcome"><Sparkles size={18} /><strong>Ask about this claim</strong><p>I can explain the case history, evidence, communications, and preparation work. I cannot make the handler&apos;s decisions.</p></div>}
+        {messages.map((message, index) => <article className={"chatMessage chat-" + message.role} key={index}><span>{message.role === "agent" ? <Bot size={13} /> : <UserRound size={13} />}</span><p>{message.body}</p></article>)}
+      </div>
+      <div className="chatSuggestions">{suggestions.map((suggestion) => <button key={suggestion} onClick={() => submit(suggestion)}>{suggestion}</button>)}</div>
+      <form onSubmit={(event) => { event.preventDefault(); submit(input); }}>
+        <input aria-label="Ask this claim agent" placeholder="Ask about this claim…" value={input} onChange={(event) => setInput(event.target.value)} />
+        <button aria-label="Send question" type="submit"><Send size={14} /></button>
+      </form>
+    </div>
   );
 }
