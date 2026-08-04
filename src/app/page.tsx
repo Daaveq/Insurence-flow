@@ -23,7 +23,7 @@ import {
   UserRound,
   XCircle,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { demoCases, type AnalysisResult, type CaseId, type DemoCase, type TraceEvent } from "@/lib/demo-case";
 
 type RunState = "idle" | "running" | "complete" | "error";
@@ -176,67 +176,90 @@ type TourStep = {
   placement: "center" | "left" | "right" | "below";
 };
 
-const tourSteps: TourStep[] = [
+const overviewTourSteps: TourStep[] = [
   {
-    title: "Welcome to the demo",
-    body: "This is a demo for If. The idea is to show how an AI agent could work with insurance claims.",
+    title: "Welcome to Claims Copilot",
+    body: "This demo shows how case-specific AI agents can prepare insurance claims while human handlers retain every decision that requires judgment.",
     placement: "center",
   },
   {
-    title: "The claims-handler side",
-    body: "This side shows an uploaded claim already waiting for review. Imagine that the human handler is busy with another case: the agent can do useful pre-work before the handler arrives.",
+    title: "The claims-handler workspace",
+    body: "The large left side is the handler's portfolio. It shows the queue, each customer's situation, and how far claim preparation has progressed before a handler opens the file.",
     target: "handler-side",
     placement: "right",
   },
   {
-    title: "The AI agent side",
-    body: "Here you can see what the agent is doing, which information it is using from the handler's dashboard, and how the work can remain understandable without an immense amount of technical machinery.",
+    title: "A claim-specific agent workspace",
+    body: "The smaller right side is intentionally empty in the overview. Opening a claim loads a separate bounded agent with only that claim's files, rules, and audit history, and the workspace expands to a 50/50 view.",
     target: "agent-side",
     placement: "left",
   },
   {
-    title: "AGENT.md",
-    body: "This small file defines the agent's role and hard boundaries. It can prepare and recommend, but it cannot approve, deny, pay, authorize repair, or contact the customer.",
-    target: "source-agent",
-    placement: "left",
-  },
-  {
-    title: "Rules.md",
-    body: "These are the synthetic handling and evidence rules the agent must check. They make its assessment visible and repeatable instead of leaving the model to improvise.",
-    target: "source-rules",
-    placement: "left",
-  },
-  {
-    title: "Receipt.jpg",
-    body: "The customer supplied this purchase receipt. The agent reads the purchase details, compares them with the claim, and records both confirmed and missing evidence checks.",
-    target: "source-receipt",
-    placement: "left",
-  },
-  {
-    title: "Damage.jpg",
-    body: "The agent inspects this image live. No observations are prefilled: its description and rule checks appear only after the model has reviewed the photograph.",
-    target: "source-damage",
-    placement: "left",
-  },
-  {
-    title: "Repair Estimate.pdf",
-    body: "The estimate is shown as extracted document text. The agent checks its repair scope, total, and whether the device can be matched to the other evidence.",
-    target: "source-repair-estimate",
-    placement: "left",
-  },
-  {
-    title: "Reset the demo",
-    body: "Reset demo stops an active run and restores the claim to its original state. Use it whenever you want to clear the agent's work and walk through the experience again.",
-    target: "reset-demo",
-    placement: "below",
-  },
-  {
-    title: "Run the real copilot",
-    body: "Click either Run copilot button to start. This is an actual agent doing the work live on my Codex subscription—so, for the sake of my sourdough recipes, please run it sparingly. Feel free to click around and familiarise yourself before you begin.",
-    target: "run-copilot",
-    placement: "below",
+    title: "Choose one of the two demo claims",
+    body: "The first two claims are interactive. Lina's claim shows successful preparation and customer follow-up; Erik's claim shows the agent stopping safely when a malicious instruction is detected.",
+    target: "available-claim",
+    placement: "right",
   },
 ];
+
+function getClaimTourSteps(isInjection: boolean): TourStep[] {
+  return [
+    {
+      title: "Inside this claim",
+      body: "The handler now sees the submitted claim on the left, while this claim's dedicated agent and bounded source packet have loaded on the right. Nothing has started automatically yet.",
+      target: "handler-side",
+      placement: "right",
+    },
+    {
+      title: "The claim preparation map",
+      body: "These four boxes make the preparation lifecycle visible. Individual checks light up as the agent works, so the handler can see what was found, what remains, and where human judgment begins.",
+      target: "claim-timeline",
+      placement: "right",
+    },
+    {
+      title: "1. Claim intake",
+      body: "This box confirms what arrived with the initial submission: the loss details, the linked customer and policy, and the uploaded evidence. It is preparation context, not a claim decision.",
+      target: "timeline-stage-0",
+      placement: "right",
+    },
+    {
+      title: isInjection ? "2. Document safety" : "2. Evidence review",
+      body: isInjection
+        ? "Before using customer documents, the agent isolates visible content and scans machine-readable text for instructions that try to override its rules."
+        : "The agent will inspect the damage photo, receipt, and repair estimate one by one. Each check shows what is confirmed and which identifiers or views are still missing.",
+      target: "timeline-stage-1",
+      placement: "right",
+    },
+    {
+      title: isInjection ? "3. Automation stop" : "3. Customer follow-up",
+      body: isInjection
+        ? "If an untrusted instruction is found, this box records that communication and analysis were stopped. The agent makes no claim decision and takes no further automated action."
+        : "When evidence is missing, the agent transparently contacts the customer as an AI assistant, receives new files, processes them, and records the exchange without making any claim decision.",
+      target: "timeline-stage-2",
+      placement: "right",
+    },
+    {
+      title: isInjection ? "4. Specialist handoff" : "4. Handler handoff",
+      body: isInjection
+        ? "The exact safety finding is preserved for a human specialist, who can request a clean document and decide how the case should proceed."
+        : "Once the available evidence and communications are organized, the case becomes ready for handler review. Coverage, compensation, repair authorization, and outcome remain human decisions.",
+      target: "timeline-stage-3",
+      placement: "right",
+    },
+    {
+      title: "The case-scoped agent workspace",
+      body: "On the right, the upper pane shows exactly which source the agent is using. The lower audit log records timestamps, inputs, outputs, and concise reasons without exposing private chain-of-thought.",
+      target: "agent-side",
+      placement: "left",
+    },
+    {
+      title: "Start the preparation pass",
+      body: "When you are ready, start preparation. The guide closes here so you can watch the active checks, source files, audit events, and customer communication move together.",
+      target: "run-copilot",
+      placement: "below",
+    },
+  ];
+}
 
 function currentTime() {
   return new Intl.DateTimeFormat("en-GB", {
@@ -302,15 +325,21 @@ async function revealText(
 }
 
 function DemoTour({
+  steps,
   stepIndex,
   sourceCount,
   setStepIndex,
+  label,
+  finishLabel,
 }: {
+  steps: TourStep[];
   stepIndex: number;
   sourceCount: number;
   setStepIndex: (step: number) => void;
+  label: string;
+  finishLabel: string;
 }) {
-  const step = tourSteps[stepIndex];
+  const step = steps[stepIndex];
   const [spotlightRects, setSpotlightRects] = useState<Array<{
     left: number;
     top: number;
@@ -357,9 +386,9 @@ function DemoTour({
       frame = window.requestAnimationFrame(updateSpotlight);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setStepIndex(tourSteps.length);
+      if (event.key === "Escape") setStepIndex(steps.length);
       if (event.key === "ArrowRight") {
-        setStepIndex(Math.min(stepIndex + 1, tourSteps.length));
+        setStepIndex(Math.min(stepIndex + 1, steps.length));
       }
       if (event.key === "ArrowLeft") {
         setStepIndex(Math.max(stepIndex - 1, 0));
@@ -375,7 +404,7 @@ function DemoTour({
       window.removeEventListener("scroll", scheduleUpdate, true);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [sourceCount, step, stepIndex, setStepIndex]);
+  }, [sourceCount, step, stepIndex, setStepIndex, steps.length]);
 
   if (!step) return null;
 
@@ -420,16 +449,16 @@ function DemoTour({
         )
         : <div className="tourBackdrop" aria-hidden="true" />}
       <section
-        aria-label="Demo introduction"
+        aria-label={label + " walkthrough"}
         aria-modal="true"
         className={"tourCard tourCard-" + step.placement}
         role="dialog"
       >
-        <span className="tourEyebrow">Demo guide · {stepIndex + 1}/{tourSteps.length}</span>
+        <span className="tourEyebrow">{label} · {stepIndex + 1}/{steps.length}</span>
         <h2>{step.title}</h2>
         <p>{step.body}</p>
         <footer>
-          <button className="tourSkip" onClick={() => setStepIndex(tourSteps.length)}>Skip tour</button>
+          <button className="tourSkip" onClick={() => setStepIndex(steps.length)}>Skip guide</button>
           <div>
             {stepIndex > 0 && (
               <button className="tourBack" onClick={() => setStepIndex(stepIndex - 1)}>Back</button>
@@ -438,7 +467,7 @@ function DemoTour({
               className="tourNext"
               onClick={() => setStepIndex(stepIndex + 1)}
             >
-              {stepIndex === tourSteps.length - 1 ? "Explore demo" : "Next"}
+              {stepIndex === steps.length - 1 ? finishLabel : "Next"}
             </button>
           </div>
         </footer>
@@ -487,7 +516,8 @@ function TypewriterText({ text, animate }: { text: string; animate: boolean }) {
 export default function Home() {
   const [workspaceView, setWorkspaceView] = useState<WorkspaceView>("portfolio");
   const [selectedCaseId, setSelectedCaseId] = useState<CaseId | null>(null);
-  const [tourStep, setTourStep] = useState(tourSteps.length);
+  const [overviewTourStep, setOverviewTourStep] = useState(0);
+  const [claimTourStep, setClaimTourStep] = useState(-1);
   const [runState, setRunState] = useState<RunState>("idle");
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [trace, setTrace] = useState<TraceEvent[]>(idleTrace);
@@ -532,14 +562,10 @@ export default function Home() {
     () => sources.find((source) => source.id === selectedSourceId),
     [selectedSourceId, sources],
   );
-
-  const navigateTour = useCallback((stepIndex: number) => {
-    const target = tourSteps[stepIndex]?.target;
-    if (target?.startsWith("source-")) {
-      setSelectedSourceId(target.slice("source-".length));
-    }
-    setTourStep(stepIndex);
-  }, []);
+  const claimGuideSteps = useMemo(
+    () => demoCase ? getClaimTourSteps(demoCase === demoCases.injection) : [],
+    [demoCase],
+  );
 
   const resetDemo = () => {
     requestVersion.current += 1;
@@ -568,6 +594,8 @@ export default function Home() {
     setSources([]);
     setSourceError("");
     setSelectedCaseId(caseId);
+    setOverviewTourStep(overviewTourSteps.length);
+    setClaimTourStep(0);
     setWorkspaceView("claim");
   };
 
@@ -577,6 +605,7 @@ export default function Home() {
     setSources([]);
     setSourceError("");
     setSelectedCaseId(null);
+    setClaimTourStep(-1);
     setWorkspaceView("portfolio");
   };
 
@@ -883,11 +912,25 @@ export default function Home() {
           <ActivityPane trace={trace} state={runState} demoCase={demoCase} /></>}
         </aside>
       </main>
-      <DemoTour
-        stepIndex={tourStep}
-        sourceCount={sources.length}
-        setStepIndex={navigateTour}
-      />
+      {workspaceView === "portfolio" ? (
+        <DemoTour
+          steps={overviewTourSteps}
+          stepIndex={overviewTourStep}
+          sourceCount={sources.length}
+          setStepIndex={setOverviewTourStep}
+          label="Overview guide"
+          finishLabel="Explore claims"
+        />
+      ) : demoCase ? (
+        <DemoTour
+          steps={claimGuideSteps}
+          stepIndex={claimTourStep}
+          sourceCount={sources.length}
+          setStepIndex={setClaimTourStep}
+          label="Claim guide"
+          finishLabel="Watch the agent"
+        />
+      ) : null}
     </div>
   );
 }
@@ -917,7 +960,7 @@ function ClaimsOverview({ selectCase }: { selectCase: (caseId: CaseId) => void }
             <span className="claimOpen">{caseId ? <ArrowRight size={15} /> : <small>Demo only</small>}</span>
           </>;
           return caseId ? (
-            <button className="claimRow claimRow-active" key={claim.claim} onClick={() => selectCase(caseId)}>{content}</button>
+            <button data-tour="available-claim" className="claimRow claimRow-active" key={claim.claim} onClick={() => selectCase(caseId)}>{content}</button>
           ) : (
             <div className="claimRow claimRow-disabled" key={claim.claim} tabIndex={0}>
               {content}
@@ -1038,11 +1081,11 @@ function ClaimTimeline({ demoCase, state, followUpStage, workingSourceIds, secur
   ];
 
   return (
-    <section className="claimTimeline">
+    <section data-tour="claim-timeline" className="claimTimeline">
       <header><div><Clock3 size={15} /><strong>Claim preparation timeline</strong></div><span>Every check and handoff remains visible</span></header>
       <div className="timelineStages">
         {stages.map((stage, index) => (
-          <article className={"timelineStage timeline-" + stage.status} key={stage.label}>
+          <article data-tour={"timeline-stage-" + index} className={"timelineStage timeline-" + stage.status} key={stage.label}>
             <header><span className="timelineNode">{stage.status === "complete" || stage.status === "ready" ? <Check size={12} /> : index + 1}</span><div><strong>{stage.label}</strong><small>{stage.detail}</small></div></header>
             <ul>{stage.items.map((item) => <li className={[item.warning ? "itemWarning" : item.done ? "itemDone" : "", item.active ? "itemActive" : ""].filter(Boolean).join(" ")} key={item.label}>{item.done && !item.active ? <Check size={10} /> : <span />}{item.label}</li>)}</ul>
           </article>

@@ -78,15 +78,60 @@ const mockResult = {
   auditNote: "No external action was taken.",
 };
 
+async function dismissGuide(page: Page) {
+  const skip = page.getByRole("button", { name: "Skip guide" });
+  if (await skip.isVisible().catch(() => false)) await skip.click();
+}
+
 async function openDemo(page: Page, caseName = "Lina Berg") {
   await page.goto("/");
+  await dismissGuide(page);
   await page.getByRole("button", { name: new RegExp(caseName) }).first().click();
+  await dismissGuide(page);
 }
 
 test.describe("Claims Copilot demo", () => {
+  test("introduces the portfolio and each claim preparation box", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto("/");
+
+    const overviewGuide = page.getByRole("dialog", { name: "Overview guide walkthrough" });
+    await expect(overviewGuide.getByRole("heading", { name: "Welcome to Claims Copilot" })).toBeVisible();
+    await overviewGuide.getByRole("button", { name: "Next" }).click();
+    await expect(overviewGuide.getByRole("heading", { name: "The claims-handler workspace" })).toBeVisible();
+    await expect(page.locator(".tourSpotlight")).toHaveCount(1);
+    await overviewGuide.getByRole("button", { name: "Next" }).click();
+    await expect(overviewGuide.getByRole("heading", { name: "A claim-specific agent workspace" })).toBeVisible();
+    await overviewGuide.getByRole("button", { name: "Next" }).click();
+    await expect(overviewGuide.getByRole("heading", { name: "Choose one of the two demo claims" })).toBeVisible();
+    await expect(page.locator(".tourSpotlight")).toHaveCount(2);
+    await overviewGuide.getByRole("button", { name: "Explore claims" }).click();
+
+    await page.getByRole("button", { name: /Lina Berg/ }).click();
+    const claimGuide = page.getByRole("dialog", { name: "Claim guide walkthrough" });
+    const expectedSteps = [
+      "Inside this claim",
+      "The claim preparation map",
+      "1. Claim intake",
+      "2. Evidence review",
+      "3. Customer follow-up",
+      "4. Handler handoff",
+      "The case-scoped agent workspace",
+      "Start the preparation pass",
+    ];
+    for (const [index, title] of expectedSteps.entries()) {
+      await expect(claimGuide.getByRole("heading", { name: title })).toBeVisible();
+      await expect(page.locator(".tourSpotlight")).toHaveCount(index === 7 ? 2 : 1);
+      await claimGuide.getByRole("button", { name: index === expectedSteps.length - 1 ? "Watch the agent" : "Next" }).click();
+    }
+    await expect(claimGuide).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
+  });
+
   test("opens on the claims overview with no agent loaded", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
+    await dismissGuide(page);
 
     await expect(page.getByRole("heading", { name: "Good morning, Alex" })).toBeVisible();
     await expect(page.getByAltText("If")).toBeVisible();
@@ -104,6 +149,7 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.getByRole("heading", { name: "No claim agent loaded" })).toBeVisible();
 
     await page.getByRole("button", { name: /Lina Berg/ }).click();
+    await dismissGuide(page);
     await expect(page.locator(".caseId")).toHaveText("IF-CLM-260803-1842");
     await expect(page.getByText(/I took my phone out of my jacket pocket/)).toBeVisible();
     await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
@@ -399,7 +445,9 @@ test.describe("Claims Copilot demo", () => {
     });
 
     await page.goto("/");
+    await dismissGuide(page);
     await page.getByRole("button", { name: /Erik Holm/ }).click();
+    await dismissGuide(page);
     await expect(page.locator(".caseId")).toHaveText("IF-CLM-260805-2044");
     await expect(page.getByText("Erik Holm")).toBeVisible();
     await expect(page.getByText(/Galaxy S24/)).toBeVisible();
