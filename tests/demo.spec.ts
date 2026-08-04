@@ -89,6 +89,7 @@ test.describe("Claims Copilot demo", () => {
     await page.goto("/");
 
     await expect(page.getByRole("heading", { name: "Good morning, Alex" })).toBeVisible();
+    await expect(page.getByAltText("If")).toBeVisible();
     await expect(page.getByRole("region", { name: "Claims overview" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No claim agent loaded" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Lina Berg/ })).toBeVisible();

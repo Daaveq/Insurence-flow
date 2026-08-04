@@ -771,7 +771,7 @@ export default function Home() {
     <div className="appShell">
       <header className="appHeader">
         <div className="brandLockup">
-          <div className="brandMark" aria-hidden="true">if</div>
+          <Image className="brandLogo" src="/brand/if-logo.png" alt="If" width={58} height={26} priority />
           <div><strong>Claims Copilot</strong><span>Synthetic damaged-phone demo</span></div>
         </div>
         <div className="workspaceCrumb">
