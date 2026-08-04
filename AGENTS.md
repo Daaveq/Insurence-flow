@@ -27,8 +27,10 @@ Before declaring a work session complete:
 1. Review the diff and run the relevant checks.
 2. Update `MEMORY.md` with durable knowledge and the current project state.
 3. Add a concise entry to `chatlog/YYYY-MM-DD.md` covering decisions, changes, verification, and open follow-ups.
-4. Report the current branch, changed files, verification results, and remaining work.
-5. Ask for explicit authorization before staging, committing, or creating a pull request. The user has granted standing authorization to push the current non-`main` work branch at the end of each run.
+4. Stage only the files created or modified for the current objective, preserving unrelated user changes.
+5. Commit the scoped changes on the current non-`main` task branch with a focused, imperative commit message. Do this automatically at the end of every run that changed tracked project state; do not create empty commits.
+6. Push that task branch to GitHub automatically so every completed run is recoverable remotely.
+7. Report the current branch, commit, changed files, verification results, and remaining work.
 
 ## GitHub Workflow
 
@@ -36,8 +38,9 @@ Before declaring a work session complete:
 - Never commit or push directly to `main` except for the explicitly approved one-time repository bootstrap.
 - Never merge into `main` unless the user explicitly requests that exact action.
 - Keep commits focused and use an imperative summary that explains the outcome.
-- Push the current non-`main` work branch automatically at the end of each run when it contains unpublished commits. This standing authorization does not apply to `main`, force pushes, tags, or other branches.
-- Prefer a draft pull request for reviewable work unless the user requests a ready-for-review pull request.
+- The user grants standing authorization to stage the current run's scoped files, commit them on the active non-`main` task branch, and push that branch at the end of every run. Do not ask again for those three actions.
+- This standing authorization does not cover unrelated worktree changes, empty commits, `main`, force pushes, tags, branch deletion, pull-request creation, or merging.
+- Ask for explicit authorization before creating a pull request. Prefer a draft pull request unless the user requests ready-for-review.
 - A local change is not considered published until its branch exists on GitHub.
 
 ## Memory Rules

@@ -10,7 +10,7 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 - Stack: Next.js 16.2.12, React 19.2.4, TypeScript, plain CSS, Lucide icons, and Playwright.
 - AI runtime: project-pinned Codex CLI 0.146.0 using the existing local ChatGPT login; no OpenAI API key or direct API integration.
 - GitHub repository: `git@github.com:Daaveq/Insurence-flow.git`.
-- Published branch: `main`; implementation branch: `feat/phone-claim-demo`.
+- Published branch: `main`; current task branch: `chore/automatic-run-commits`.
 
 ## Product Experience
 
@@ -81,11 +81,10 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 
 ## GitHub Workflow
 
-- Use task branches and focused commits.
-- Staging, committing, pull-request creation, and merging each require explicit user authorization.
-- The user granted standing authorization to push unpublished commits from the current non-`main` work branch at the end of each run.
-- Prefer draft pull requests for reviewable work.
-- Do not push or merge directly to `main` unless explicitly requested.
+- Use task branches and focused commits; never implement directly on `main`.
+- At the end of every run containing scoped project changes, automatically update memory/chatlog, stage only that run's files, commit them on the active non-`main` task branch, and push the branch to GitHub. This is standing user authorization and does not require reconfirmation.
+- Pull-request creation, force pushes, tags, branch deletion, and any push or merge to `main` still require explicit user authorization.
+- Prefer draft pull requests for reviewable work when a pull request is authorized.
 
 ## Confirmed Decisions
 
