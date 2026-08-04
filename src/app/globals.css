@@ -52,7 +52,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
   display: flex;
 }
 .brandLockup { gap: 10px; min-width: 0; }
-.brandLogo { height: 26px; object-fit: contain; width: 58px; }
+.brandLogo { height: 36px; object-fit: contain; width: 82px; }
 .brandLockup strong, .brandLockup span { display: block; }
 .brandLockup strong { font-size: 14px; line-height: 1.2; }
 .brandLockup span { color: var(--muted); font-size: 10px; margin-top: 2px; }
@@ -192,6 +192,7 @@ button:disabled { cursor: default; opacity: .78; }
   border-right: 1px solid #c7ceca;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 .backendPanel {
   background: var(--dark);
@@ -684,14 +685,19 @@ button.claimRow:hover { background: #fafbfa; }
 .logDraftCard > footer > span { align-items: center; color: var(--muted); display: flex; font-size: 7px; gap: 5px; }
 .logDraftCard > footer > span svg { color: var(--green); }
 .logDraftCard .primaryButton { flex: 0 0 auto; font-size: 8px; padding: 7px 9px; }
-.writingIndicator { align-items: center; background: #f4f8f5; border-bottom: 1px solid var(--line); display: flex; gap: 8px; padding: 11px 14px; }
-.writingAvatar { align-items: center; background: var(--green-soft); border-radius: 50%; color: var(--green); display: flex; height: 27px; justify-content: center; width: 27px; }
-.writingIndicator > div { flex: 1; }
+.writingIndicator { align-items: flex-end; background: #eef3f0; border-bottom: 1px solid var(--line); display: flex; gap: 8px; padding: 12px 16px; }
+.writingIndicator.writing-human { flex-direction: row-reverse; }
+.writingIndicator.writing-human > div { flex: 0 1 auto; text-align: right; }
+.writingAvatar { align-items: center; background: var(--green-soft); border-radius: 50%; color: var(--green); display: flex; flex: 0 0 auto; height: 27px; justify-content: center; width: 27px; }
+.writing-human .writingAvatar { background: #dfe8f8; color: #4d6084; }
+.writingIndicator > div { flex: 0 1 auto; }
 .writingIndicator small, .writingIndicator strong { display: block; }
 .writingIndicator small { color: var(--muted); font-size: 7px; }
-.writingIndicator strong { font-size: 8px; margin-top: 2px; }
+.writingIndicator strong { background: white; border: 1px solid #cdd7d1; border-radius: 11px 11px 11px 3px; font-size: 8px; margin-top: 3px; padding: 7px 9px; }
+.writing-human strong { background: #e8eef9; border-color: #c4cfe2; border-radius: 11px 11px 3px 11px; }
 .writingIndicator > i { align-items: center; background: white; border: 1px solid #bdd1c4; border-radius: 999px; display: flex; gap: 3px; padding: 7px 9px; }
 .writingIndicator b { animation: writingDot 1.05s ease-in-out infinite; background: var(--green); border-radius: 50%; height: 5px; width: 5px; }
+.writing-human b { background: #4d6084; }
 .writingIndicator b:nth-child(2) { animation-delay: .16s; }
 .writingIndicator b:nth-child(3) { animation-delay: .32s; }
 @keyframes writingDot { 0%, 60%, 100% { opacity: .32; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
@@ -705,32 +711,37 @@ button.claimRow:hover { background: #fafbfa; }
 .logReady small { color: var(--green); font-size: 7px; font-weight: 800; text-transform: uppercase; }
 .logReady strong { font-size: 11px; margin-top: 2px; }
 .logReady p { color: var(--muted); font-size: 7px; margin-top: 2px; }
-.messageAttachment { align-items: center; background: #f4f6f5; border: 1px solid var(--line); border-radius: 4px; color: #405049; display: flex; font-size: 7px; gap: 5px; margin-top: 7px; padding: 6px 7px; }
+.messageAttachment { align-items: center; background: rgb(255 255 255 / 72%); border: 1px solid rgb(101 122 112 / 22%); border-radius: 6px; color: #405049; display: flex; font-size: 7px; gap: 5px; margin-top: 8px; padding: 7px 8px; }
 .emptyCommunications { align-items: center; color: var(--muted); display: flex; gap: 9px; padding: 15px; }
 .emptyCommunications p { font-size: 8px; line-height: 1.45; }
-.communicationEntries { display: flex; flex-direction: column; padding: 4px 12px 12px; }
-.communicationEntry { display: grid; gap: 8px; grid-template-columns: 25px minmax(0, 1fr); padding: 10px 2px; }
-.communicationEntry + .communicationEntry { border-top: 1px solid #e7e9e7; }
-.communicationLatest { background: #fbfdfc; box-shadow: inset 3px 0 var(--green); margin: 0 -12px; padding-left: 14px; padding-right: 14px; }
-.actorIcon { align-items: center; background: #edf0ee; border-radius: 50%; color: var(--muted); display: flex; height: 24px; justify-content: center; width: 24px; }
-.communication-ai .actorIcon { background: var(--green-soft); color: var(--green); }
-.communication-security .actorIcon { background: #fff0ee; color: var(--danger); }
-.communicationEntry header { align-items: center; display: flex; justify-content: space-between; }
+.communicationEntries { background: #eef3f0; display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.communicationEntry { align-items: flex-end; align-self: flex-start; display: flex; gap: 8px; max-width: 88%; padding: 0; width: auto; }
+.communicationEntry.communication-human { align-self: flex-end; flex-direction: row-reverse; }
+.communicationEntry.communication-system, .communicationEntry.communication-security { align-self: center; max-width: 94%; width: 94%; }
+.communicationEntry > div { background: #e4f3ea; border: 1px solid #b9d8c6; border-radius: 14px 14px 14px 4px; box-shadow: 0 3px 10px rgb(31 66 47 / 7%); min-width: 180px; padding: 10px 12px; }
+.communication-human > div { background: #e8eef9; border-color: #c5d0e3; border-radius: 14px 14px 4px 14px; }
+.communication-system > div { background: white; border-color: #ccd3cf; border-radius: 8px; }
+.communication-security > div { background: #fff0ee; border-color: #d9aaa3; border-radius: 8px; }
+.communicationLatest > div { box-shadow: 0 0 0 3px rgb(75 151 111 / 12%), 0 6px 18px rgb(31 66 47 / 10%); }
+.actorIcon { align-items: center; background: #d6eadf; border-radius: 50%; color: var(--green); display: flex; flex: 0 0 auto; height: 28px; justify-content: center; width: 28px; }
+.communication-human .actorIcon { background: #dfe8f8; color: #4d6084; }
+.communication-security .actorIcon { background: #ffe0dc; color: var(--danger); }
+.communicationEntry header { align-items: center; display: flex; gap: 12px; justify-content: space-between; }
 .communicationEntry header strong { font-size: 9px; }
 .communicationEntry time { color: var(--muted); font-family: var(--font-geist-mono), monospace; font-size: 7px; }
-.communicationMeta { align-items: center; display: flex; gap: 5px; margin-top: 2px; }
+.communicationMeta { align-items: center; display: flex; flex-wrap: wrap; gap: 5px; margin-top: 3px; }
 .communicationMeta span, .communicationMeta i, .communicationMeta em { font-size: 7px; }
 .communicationMeta span { font-weight: 720; }
 .communicationMeta i { color: var(--muted); font-style: normal; }
-.communicationMeta em { background: var(--green-soft); border-radius: 3px; color: var(--green); font-style: normal; font-weight: 760; padding: 2px 4px; text-transform: uppercase; }
-.communicationMeta em.humanBadge { background: #eef1f7; color: #4d6084; }
-.communicationEntry p { color: #4e5853; font-size: 8px; line-height: 1.5; margin-top: 5px; white-space: pre-wrap; }
+.communicationMeta em { background: rgb(255 255 255 / 66%); border-radius: 3px; color: var(--green); font-style: normal; font-weight: 760; padding: 2px 4px; text-transform: uppercase; }
+.communicationMeta em.humanBadge { background: rgb(255 255 255 / 66%); color: #4d6084; }
+.communicationEntry p { color: #33413a; font-size: 8px; line-height: 1.55; margin-top: 7px; white-space: pre-wrap; }
 .communicationLog > footer { align-items: center; background: var(--soft); border-top: 1px solid var(--line); color: var(--muted); display: flex; font-size: 7px; gap: 5px; padding: 7px 12px; }
-
-
-.communicationEntry[role="button"] { cursor: pointer; outline: none; transition: background .16s ease, box-shadow .16s ease; }
-.communicationEntry[role="button"]:hover, .communicationEntry[role="button"]:focus-visible { background: #f1f8f4; box-shadow: inset 3px 0 var(--green); }
+.communicationEntry[role="button"] { cursor: pointer; outline: none; transition: transform .16s ease; }
+.communicationEntry[role="button"]:hover, .communicationEntry[role="button"]:focus-visible { transform: translateY(-1px); }
+.communicationEntry[role="button"]:focus-visible > div { box-shadow: 0 0 0 3px rgb(75 151 111 / 20%); }
 .communicationMeta small { color: #77817c; font-size: 7px; margin-left: auto; }
+
 .messageOverlay { align-items: center; background: rgb(20 31 25 / 52%); display: flex; inset: 58px 50% 0 0; justify-content: center; padding: 24px; position: fixed; z-index: 45; }
 .expandedMessage { background: white; border: 1px solid #acc8b8; border-radius: 8px; box-shadow: 0 22px 70px rgb(9 23 15 / 32%); max-height: calc(100vh - 110px); overflow: auto; width: min(620px, 100%); }
 .expandedMessage > header { align-items: center; border-bottom: 1px solid var(--line); display: flex; gap: 10px; padding: 15px 17px; }
@@ -750,11 +761,16 @@ button.claimRow:hover { background: #fafbfa; }
 .expandedAttachment { display: inline-flex; font-size: 9px; margin-top: 18px; padding: 9px 11px; }
 .expandedMessage > footer { align-items: center; background: var(--soft); border-top: 1px solid var(--line); color: var(--muted); display: flex; font-size: 8px; gap: 6px; padding: 10px 17px; }
 
-.agentChatLauncher { align-items: center; background: var(--brand); border: 1px solid #e56779; border-radius: 999px; bottom: 12px; box-shadow: 0 8px 26px rgb(0 0 0 / 34%); color: white; cursor: pointer; display: flex; font-size: 8px; font-weight: 760; gap: 6px; padding: 9px 12px; position: absolute; right: 13px; z-index: 8; }
+.agentChatLauncher { align-items: center; background: var(--brand); border: 1px solid #e56779; border-radius: 999px; bottom: 14px; box-shadow: 0 8px 26px rgb(117 25 43 / 24%); color: white; cursor: pointer; display: flex; font-size: 8px; font-weight: 760; gap: 6px; left: 14px; padding: 10px 13px; position: absolute; z-index: 18; }
 .agentChatLauncher:hover, .agentChatLauncher.launcherActive { background: #d12a42; }
-.agentChatLauncher.launcherActive { bottom: auto; top: calc(55% + 7px); }
+.handlerChatOverlay { align-items: flex-end; background: rgb(29 38 33 / 28%); display: flex; inset: 43px 0 0; padding: 14px 14px 58px; position: absolute; z-index: 16; }
+.handlerChatCard { background: var(--dark); border: 1px solid #58675f; border-radius: 9px; box-shadow: 0 20px 60px rgb(15 24 19 / 32%); display: flex; height: min(560px, calc(100% - 14px)); max-width: 460px; overflow: hidden; position: relative; width: calc(100% - 14px); }
+.handlerChatCard .agentChat { width: 100%; }
+.handlerChatClose { align-items: center; background: transparent; border: 0; color: #aab8b1; cursor: pointer; display: flex; padding: 2px; position: absolute; right: 12px; top: 12px; z-index: 2; }
+.handlerChatCard .agentChat > header { padding-right: 46px; }
 
 .agentPaneTabs { align-items: center; background: var(--dark-2); border-bottom: 1px solid var(--dark-line); display: flex; flex: 0 0 auto; min-height: 42px; padding: 5px 9px; }
+.agentPaneTabs strong { align-items: center; color: var(--dark-text); display: flex; font-size: 8px; gap: 5px; }
 .agentPaneTabs button { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 4px; color: var(--dark-muted); cursor: pointer; display: flex; font-size: 8px; font-weight: 730; gap: 5px; padding: 7px 8px; }
 .agentPaneTabs button.active { background: #29342f; border-color: #52615a; color: var(--dark-text); }
 .agentPaneTabs > span { color: #718079; font-family: var(--font-geist-mono), monospace; font-size: 7px; margin-left: auto; }
@@ -843,6 +859,8 @@ button.claimRow:hover { background: #fafbfa; }
   .logPause, .logDraftCard > footer { align-items: flex-start; flex-direction: column; }
   .logDraftCard .primaryButton { justify-content: center; width: 100%; }
   .communicationLog > header { align-items: flex-start; gap: 5px; }
+  .handlerChatOverlay { inset: 0; padding: 12px 12px 58px; position: fixed; z-index: 46; }
+  .handlerChatCard { height: calc(100vh - 82px); max-width: none; width: 100%; }
   .messageOverlay { inset: 0; padding: 14px; }
   .expandedMessage { max-height: calc(100vh - 28px); }
   .expandedMessageBody { padding: 18px; }

@@ -29,7 +29,6 @@ import { demoCases, type AnalysisResult, type CaseId, type DemoCase, type TraceE
 type RunState = "idle" | "running" | "complete" | "error";
 type WorkspaceView = "portfolio" | "claim";
 type FollowUpStage = "none" | "drafting_request" | "draft_ready" | "request_sent" | "customer_typing" | "customer_replied" | "agent_replying" | "paused" | "estimate_incoming" | "processing_estimate" | "ready";
-type AgentPaneTab = "audit" | "chat";
 type SourceGroup = "agent" | "customer";
 type SourceKind = "markdown" | "image" | "document";
 type SecurityFinding = { location: string; text: string };
@@ -475,7 +474,7 @@ export default function Home() {
   const [draftIsTyping, setDraftIsTyping] = useState(false);
   const [draftApproved, setDraftApproved] = useState(false);
   const [followUpStage, setFollowUpStage] = useState<FollowUpStage>("none");
-  const [agentPaneTab, setAgentPaneTab] = useState<AgentPaneTab>("audit");
+  const [caseChatOpen, setCaseChatOpen] = useState(false);
   const [securityStop, setSecurityStop] = useState<SecurityStop | null>(null);
   const analysisRequest = useRef<AbortController | null>(null);
   const initialSources = useRef<SourceFile[]>([]);
@@ -528,7 +527,7 @@ export default function Home() {
     setDraftIsTyping(false);
     setDraftApproved(false);
     setFollowUpStage("none");
-    setAgentPaneTab("audit");
+    setCaseChatOpen(false);
     setSecurityStop(null);
     setSelectedSourceId("agent");
     setWorkingSourceIds([]);
@@ -568,7 +567,7 @@ export default function Home() {
     setDraftIsTyping(false);
     setDraftApproved(false);
     setFollowUpStage("none");
-    setAgentPaneTab("audit");
+    setCaseChatOpen(false);
     setSecurityStop(null);
     setSelectedSourceId("agent");
     setWorkingSourceIds(["agent"]);
@@ -771,7 +770,7 @@ export default function Home() {
     <div className="appShell">
       <header className="appHeader">
         <div className="brandLockup">
-          <Image className="brandLogo" src="/brand/if-logo.png" alt="If" width={58} height={26} priority />
+          <Image className="brandLogo" src="/brand/if-logo.png" alt="If" width={82} height={36} priority />
           <div><strong>Claims Copilot</strong><span>Synthetic damaged-phone demo</span></div>
         </div>
         <div className="workspaceCrumb">
@@ -812,6 +811,21 @@ export default function Home() {
                 securityStop={securityStop}
               />
             </div>
+            <button
+              aria-expanded={caseChatOpen}
+              className={"agentChatLauncher" + (caseChatOpen ? " launcherActive" : "")}
+              onClick={() => setCaseChatOpen((open) => !open)}
+            >
+              <MessageCircle size={15} />{caseChatOpen ? "Case agent chat open" : "Chat with this case agent"}
+            </button>
+            {caseChatOpen && (
+              <div className="handlerChatOverlay">
+                <div className="handlerChatCard">
+                  <button className="handlerChatClose" aria-label="Close case agent chat" onClick={() => setCaseChatOpen(false)}><XCircle size={20} /></button>
+                  <AgentChat demoCase={demoCase} state={runState} analysis={analysis} securityStop={securityStop} followUpStage={followUpStage} />
+                </div>
+              </div>
+            )}
           </>}
         </section>
 
@@ -825,8 +839,7 @@ export default function Home() {
             sourceError={sourceError}
             selectSource={setSelectedSourceId}
           />
-          <ActivityPane trace={trace} state={runState} demoCase={demoCase} analysis={analysis} securityStop={securityStop} followUpStage={followUpStage} tab={agentPaneTab} setTab={setAgentPaneTab} />
-          <button className={"agentChatLauncher" + (agentPaneTab === "chat" ? " launcherActive" : "")} onClick={() => setAgentPaneTab("chat")}><MessageCircle size={15} />{agentPaneTab === "chat" ? "Case agent chat open" : "Chat with this case agent"}</button></>}
+          <ActivityPane trace={trace} state={runState} demoCase={demoCase} /></>}
         </aside>
       </main>
       <DemoTour
@@ -1148,7 +1161,8 @@ function CommunicationLog({
 }
 
 function WritingIndicator({ label, actor }: { label: string; actor?: string }) {
-  return <div className="writingIndicator"><span className="writingAvatar">{actor?.includes("Lina") ? <UserRound size={13} /> : <Bot size={13} />}</span><div><small>{actor ?? "AI assistant"}</small><strong>{label}</strong></div><i><b /><b /><b /></i></div>;
+  const isCustomer = actor?.includes("Lina");
+  return <div className={"writingIndicator " + (isCustomer ? "writing-human" : "writing-ai")}><span className="writingAvatar">{isCustomer ? <UserRound size={13} /> : <Bot size={13} />}</span><div><small>{actor ?? "AI assistant"}</small><strong>{label}</strong></div><i><b /><b /><b /></i></div>;
 }
 
 function PanelHeader({ label, title, detail }: { label: string; title: string; detail: string }) {
@@ -1331,44 +1345,36 @@ function SourcePane({ sources, selectedSource, selectedSourceId, workingSourceId
   );
 }
 
-function ActivityPane({ trace, state, demoCase, analysis, securityStop, followUpStage, tab, setTab }: {
+function ActivityPane({ trace, state, demoCase }: {
   trace: TraceEvent[];
   state: RunState;
   demoCase: DemoCase;
-  analysis: AnalysisResult | null;
-  securityStop: SecurityStop | null;
-  followUpStage: FollowUpStage;
-  tab: AgentPaneTab;
-  setTab: (tab: AgentPaneTab) => void;
 }) {
   const endRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
-    if (tab === "audit") endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [trace.length, state, tab]);
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [trace.length, state]);
 
   return (
     <section className="activityPane">
       <div className="agentPaneTabs">
-        <button className={tab === "audit" ? "active" : ""} onClick={() => setTab("audit")}><Activity size={13} />Audit log</button>
-        <button className={tab === "chat" ? "active" : ""} onClick={() => setTab("chat")}><MessageCircle size={13} />Ask this agent</button>
+        <strong><Activity size={13} />Audit log</strong>
         <span>Bound to {demoCase.id}</span>
       </div>
-      {tab === "audit" ? <>
-        <div className="activityList" aria-live="polite">
-          {trace.map((event, index) => (
-            <article className={"activityStep step-" + event.status + (index === trace.length - 1 ? " stepLatest" : "")} key={event.id}>
-              <span className="stepNumber">{event.status === "complete" ? <Check size={12} /> : index + 1}</span>
-              <div><header><strong>{event.title}</strong><time>{event.timestamp}</time></header>
-                <p aria-label={event.detail}><b>Why</b><span aria-hidden="true"><TypewriterText text={event.detail} animate={state === "running"} /></span></p>
-                {(event.input || event.output) && <div className="dataFlow"><span>{event.input}</span><ArrowRight size={12} /><strong>{event.output}</strong></div>}
-              </div>
-            </article>
-          ))}
-          {state === "running" && <div className="waitingLine"><Activity size={14} />Waiting for the next runtime event</div>}
-          <div ref={endRef} aria-hidden="true" />
-        </div>
-        <footer className="backendGuardrail"><ShieldCheck size={15} />Timestamped · source-aware · reasons recorded</footer>
-      </> : <AgentChat demoCase={demoCase} state={state} analysis={analysis} securityStop={securityStop} followUpStage={followUpStage} />}
+      <div className="activityList" aria-live="polite">
+        {trace.map((event, index) => (
+          <article className={"activityStep step-" + event.status + (index === trace.length - 1 ? " stepLatest" : "")} key={event.id}>
+            <span className="stepNumber">{event.status === "complete" ? <Check size={12} /> : index + 1}</span>
+            <div><header><strong>{event.title}</strong><time>{event.timestamp}</time></header>
+              <p aria-label={event.detail}><b>Why</b><span aria-hidden="true"><TypewriterText text={event.detail} animate={state === "running"} /></span></p>
+              {(event.input || event.output) && <div className="dataFlow"><span>{event.input}</span><ArrowRight size={12} /><strong>{event.output}</strong></div>}
+            </div>
+          </article>
+        ))}
+        {state === "running" && <div className="waitingLine"><Activity size={14} />Waiting for the next runtime event</div>}
+        <div ref={endRef} aria-hidden="true" />
+      </div>
+      <footer className="backendGuardrail"><ShieldCheck size={15} />Timestamped · source-aware · reasons recorded</footer>
     </section>
   );
 }

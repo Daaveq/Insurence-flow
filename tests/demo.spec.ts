@@ -246,10 +246,12 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.getByText("Communication log")).toBeVisible();
     await expect(page.getByText("Customer request ready")).toBeVisible();
     await expect(page.getByText("Oh my bad, I see now it never uploaded")).toHaveCount(0);
-    await page.getByRole("button", { name: "Chat with this case agent" }).click();
+    const handlerPane = page.getByRole("region", { name: "Front end handler view" });
+    await expect(handlerPane.getByRole("button", { name: "Chat with this case agent" })).toBeVisible();
+    await handlerPane.getByRole("button", { name: "Chat with this case agent" }).click();
     await page.getByRole("button", { name: "What happened while I was away?" }).click();
     await expect(page.locator(".chat-agent").last()).toContainText("waiting for explicit handler approval");
-    await page.getByRole("button", { name: "Audit log" }).click();
+    await page.getByRole("button", { name: "Close case agent chat" }).click();
     await expect(page.getByLabel("Subject")).toHaveValue(
       "Information needed to prepare your mobile phone claim",
     );
@@ -278,6 +280,13 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator(".communicationEntry").filter({ hasText: "Thanks, Lina — I’ve received the photo" })).toBeVisible();
     await expect(page.getByText("Explore the claim before the final email arrives")).toBeVisible({ timeout: 14_000 });
 
+    const aiBubble = page.locator(".communication-ai").first();
+    const customerBubble = page.locator(".communication-human").first();
+    const [aiBox, customerBox] = await Promise.all([aiBubble.boundingBox(), customerBubble.boundingBox()]);
+    expect(aiBox).not.toBeNull();
+    expect(customerBox).not.toBeNull();
+    expect(aiBox!.x).toBeLessThan(customerBox!.x);
+
     const firstExchange = await page.locator(".communicationEntry header strong").allTextContents();
     expect(firstExchange.slice(0, 3)).toEqual([
       "Photo received and processed",
@@ -295,7 +304,7 @@ test.describe("Claims Copilot demo", () => {
     const incomingEstimate = page.getByRole("dialog");
     await expect(incomingEstimate.getByRole("heading", { name: "Updated estimate attached" })).toBeVisible();
     await expect(incomingEstimate).toContainText("They came back to me — here is the updated estimate");
-    await expect(page.getByRole("button", { name: /Updated Repair Estimate.pdf/ })).toBeVisible();
+    await expect(page.locator('[data-tour="source-updated-repair-estimate"]')).toBeVisible();
     await expect(page.getByText("Revised repair estimate with matching device identifier")).toBeVisible();
     await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 8_000 });
     await expect(page.getByText(/Your handler now has the prepared information needed/)).toBeVisible();
