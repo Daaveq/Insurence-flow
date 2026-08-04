@@ -4,14 +4,71 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 
 ## Project Snapshot
 
-- Project name: IF Insurance Flow.
-- Repository state: workflow and memory foundation established on `main`; application stack and architecture are not yet defined.
-- Product scope: to be documented when confirmed.
+- Project name: Claims Copilot / IF Insurance Flow.
+- Purpose: polished hiring demo for an If AI Adoption and Transformation role in Nordic Digital Claims.
+- Current scope: one synthetic straightforward damaged-phone claim. Water damage and sensitive/ambiguous cases are deferred until this complete flow is accepted.
+- Stack: Next.js 16.2.12, React 19.2.4, TypeScript, plain CSS, Lucide icons, and Playwright.
+- AI runtime: project-pinned Codex CLI 0.146.0 using the existing local ChatGPT login; no OpenAI API key or direct API integration.
 - GitHub repository: `git@github.com:Daaveq/Insurence-flow.git`.
+- Published branch: `main`; implementation branch: `feat/phone-claim-demo`.
 
-## Current Objective
+## Product Experience
 
-- Define the initial product scope and application stack, then begin implementation on a focused branch.
+- The interface is a minimal split screen: the left half contains only the handler-facing claim, result, gaps, and human decisions; the right half exposes the agent backend.
+- The backend half is split vertically into a fixed-source file viewer and an explicit execution trace. Files are clickable, show their exact contents and output destination, automatically follow the source currently being read, and softly highlight every input the agent is actively working with.
+- Damage.jpg begins without image findings. The viewer is populated only from the live model's EVID-01 assessment, and reset removes those generated observations.
+- Damage.jpg, Receipt.jpg, and Repair Estimate.pdf each receive a live agent review with exactly two checks: one confirmed and one not confirmed. Their three missing items form the evidence basis for the customer email.
+- Backend descriptions, generated source reviews, and the customer email use fast typewriter reveals. New trace events arrive after about 340 ms and earlier descriptions continue typing concurrently, so the activity feels live rather than serially animated.
+- A first-run ten-step spotlight tour darkens the interface and introduces the demo, handler side, agent side, all five inputs, Reset, and both real Run copilot controls. Source selection follows the guide forwards, backwards, and by keyboard; the tour also supports Skip, Escape, and a mobile layout.
+- The generated repair-estimate rule review is rendered in its own dark panel below the original white estimate, keeping generated agent work visually separate from customer evidence.
+- Extracted fact citations open the source file that supports them. The front end prioritizes policy, incident, item, damage, and repair facts instead of displaying every returned field.
+- Reset Demo aborts an active request and restores results, approvals, trace, draft edits, and source selection to the initial state.
+- The trace does not expose private chain-of-thought. It provides a factual execution trace and concise activity descriptions.
+- The generated phone photograph is synthetic and stored at `public/evidence/damaged-phone.png`.
+- All customer, policy, merchant, repairer, and claim identifiers are fictional.
+
+## Architecture
+
+- `src/app/page.tsx`: complete interactive handler UI.
+- `src/app/api/analyze/route.ts`: spawns `codex exec --json --ephemeral --sandbox read-only`, streams sanitized NDJSON events, and returns only schema-valid analysis.
+- `src/app/api/sources/route.ts`: returns only the five fixed, read-only demo inputs for the backend file viewer.
+- `src/lib/agent-config.ts`: shared agent prompt, visible agent instructions, and source-to-output definitions.
+- `src/lib/demo-case.ts`: typed UI case data and result contracts.
+- `demo-context/claim.json`: bounded synthetic claim.
+- `demo-context/evidence-register.md`: evidence facts and limitations.
+- `demo-context/handling-rules.md`: synthetic rules and public-guidance references.
+- `demo-context/analysis-schema.json`: strict Codex output schema.
+- The server reads approved sources and pipes them into Codex stdin. Codex is instructed not to browse, run tools, or access other files.
+- Luna returns schema-valid evidence assessments and the linked customer email. The fixed server-side rules engine then applies E-02, E-03, and E-04 deterministically to produce one confirmed and one not-confirmed check per input; this keeps the visible checks reliable without burdening the model with a deeply nested rule-output contract.
+- The model is pinned to `gpt-5.6-luna` with low reasoning for the bounded extraction and structured drafting task. The route invokes the project-local Codex CLI so model support does not depend on the older system installation.
+
+## Safety And Guardrails
+
+- The copilot may extract, compare, explain, draft, and recommend.
+- It must not approve or deny a claim, determine coverage, calculate or offer compensation, set a deductible, price a claim, authorize repair, or communicate externally.
+- Customer drafts, next actions, and route changes require explicit handler approval in the UI.
+- Confidence means evidence strength and consistency, not claim approval probability.
+- The runtime accepts no arbitrary user prompt or arbitrary source path.
+- The prototype rules are explicitly synthetic and not If internal handling instructions.
+
+## Public If Context
+
+- Terminology and repair-first flow are informed by public If pages for damaged mobile phones and Otur accidental-damage cover.
+- Public sources are listed in `demo-context/handling-rules.md`.
+- Current public guidance says mobile claims benefit from make, model, purchase date, and a repair estimate; accidental drops may be relevant to Otur handling. The prototype treats these only as indicators for human review.
+
+## Verified Behavior
+
+- `npm run lint`: passes.
+- `npx tsc --noEmit`: passes.
+- `npm run build`: passes.
+- Remote review should use the production server (`npm run build`, then `npm run demo`) behind a dedicated tunnel. Exposing `next dev` can block development-runtime requests from the tunnel origin and leave the UI unresponsive.
+- `npm audit --omit=dev`: zero vulnerabilities after compatible `postcss` and `sharp` overrides.
+- Static Playwright desktop and mobile tests pass with no horizontal overflow and loaded customer evidence previews.
+- Browser tests pass for the ten-step multi-target spotlight tour, guide-driven source selection, grouped source viewer, all three pending-to-live evidence rule reviews, separate estimate-review panel, overlapping typewriter presentation, dark backend, responsive panes, email-draft output, latest-step following, handler approval, and full reset.
+- The live Playwright test passes using the real project-pinned Codex CLI and GPT-5.6 Luna with the receipt and damage images attached, and verifies the schema-approved email draft reaches the front end.
+- The latest verified Luna browser run, including three model assessments, deterministic evidence-rule reviews, and the linked email, completed in 32.7 seconds on this host; runtime may vary.
+- After the 2026-08-04 host restart, Playwright system libraries were unavailable and `install-deps` required an interactive sudo password. Static browser tests were reverified with non-root libraries unpacked under `/tmp/playwright-libs.N2AEkE`; a future clean host should install Playwright Chromium dependencies normally.
 
 ## Operating Rules
 
@@ -26,22 +83,31 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 
 - Use task branches and focused commits.
 - Staging, committing, pull-request creation, and merging each require explicit user authorization.
-- The user has granted standing authorization to push unpublished commits from the current non-`main` work branch at the end of each run.
+- The user granted standing authorization to push unpublished commits from the current non-`main` work branch at the end of each run.
 - Prefer draft pull requests for reviewable work.
 - Do not push or merge directly to `main` unless explicitly requested.
 
 ## Confirmed Decisions
 
-- Use the Writer MVP project's workflow and memory approach as a reference only.
-- Do not copy Writer MVP product code or domain-specific instructions.
-- Use `MEMORY.md` for the current source of truth and `chatlog/` for chronological session summaries.
-- Work on branches and merge to `main` only with the user's explicit approval.
+- Use the Writer MVP workflow and memory approach as a process reference only.
+- Build the first version as a polished English hiring-manager demo.
+- Start with only the straightforward damaged-phone claim.
+- Keep the customer claim UI light and minimal; keep the backend dark and split between agent inputs and an auto-following activity feed.
+- Present only `AGENT.md` and `Rules.md` as agent-owned files. Present `Receipt.jpg`, `Damage.jpg`, and `Repair Estimate.pdf` as customer uploads with clickable previews.
+- Treat the generated customer email as the primary final output. It remains editable and requires handler approval; the demo never sends it.
+- Use Codex CLI and existing ChatGPT authentication, not APIs.
+- Show real execution activity but not private chain-of-thought.
+- Use public If terminology and guidance while keeping all case data and handling rules synthetic.
+- Add water-damage and sensitive/ambiguous cases only after the complete phone flow is established.
+- Merge to `main` only with the user's explicit approval.
 
 ## Open Questions
 
-- What application stack and initial product scope should be used?
+- Whether the first review should adjust visual branding, claim details, or the recommended handler flow.
+- Where the local CLI-backed demo will ultimately run; typical serverless hosting cannot invoke the present machine's authenticated Codex CLI.
 
 ## Next Steps
 
-- Create a focused branch for the first product task.
-- Document the stack, architecture, and product goals once selected.
+- Review the damaged-phone demo with the user and refine the evaluator flow.
+- After approval, add the water-damage case with missing documentation.
+- Add the sensitive or ambiguous escalation case last.

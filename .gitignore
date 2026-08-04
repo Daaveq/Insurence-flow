@@ -12,6 +12,13 @@ build/
 .next/
 coverage/
 
+# Playwright
+/test-results
+/playwright-report
+
+# TypeScript
+*.tsbuildinfo
+
 # Local tooling
 .DS_Store
 *.log

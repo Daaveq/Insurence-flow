@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "caseSummary": {
+      "type": "string"
+    },
+    "facts": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "sourceRefs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "label",
+          "value",
+          "confidence",
+          "sourceRefs"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "evidenceAssessment": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "evidenceId": {
+            "type": "string"
+          },
+          "finding": {
+            "type": "string"
+          },
+          "supports": {
+            "type": "string"
+          },
+          "confidence": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        },
+        "required": [
+          "evidenceId",
+          "finding",
+          "supports",
+          "confidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "missing",
+              "contradiction",
+              "risk"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "low",
+              "medium",
+              "high"
+            ]
+          }
+        },
+        "required": [
+          "type",
+          "title",
+          "detail",
+          "severity"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "guardrail": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "rationale",
+        "confidence",
+        "guardrail"
+      ],
+      "additionalProperties": false
+    },
+    "customerDraft": {
+      "type": "object",
+      "properties": {
+        "subject": {
+          "type": "string"
+        },
+        "body": {
+          "type": "string"
+        },
+        "requiresApproval": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "subject",
+        "body",
+        "requiresApproval"
+      ],
+      "additionalProperties": false
+    },
+    "routing": {
+      "type": "object",
+      "properties": {
+        "queue": {
+          "type": "string"
+        },
+        "rationale": {
+          "type": "string"
+        },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "requiresApproval": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "required": [
+        "queue",
+        "rationale",
+        "confidence",
+        "requiresApproval"
+      ],
+      "additionalProperties": false
+    },
+    "rulesReferenced": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "application": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "application"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "overallConfidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "auditNote": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "caseSummary",
+    "facts",
+    "evidenceAssessment",
+    "issues",
+    "recommendation",
+    "customerDraft",
+    "routing",
+    "rulesReferenced",
+    "overallConfidence",
+    "auditNote"
+  ],
+  "additionalProperties": false
+}

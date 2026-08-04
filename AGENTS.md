@@ -46,3 +46,12 @@ Before declaring a work session complete:
 - `chatlog/` is the chronological record. Append factual session summaries; do not paste full conversations.
 - If the two disagree, investigate the latest code and decisions, then correct `MEMORY.md`.
 - When resuming work, use memory as orientation but verify important assumptions against the repository.
+
+## Project-Specific Rules
+
+- This is a Next.js 16 application. Read relevant local documentation under `node_modules/next/dist/docs/` when changing framework behavior.
+- Use `npm run lint`, `npx tsc --noEmit`, and `npm run build` for normal validation.
+- Use `npm run test:e2e` for static browser checks. Use `LIVE_CODEX=1 npm run test:e2e -- --grep "runs Codex"` only when a real authenticated CLI run is intended.
+- Preserve the fixed-source, read-only, schema-constrained design in `src/app/api/analyze/route.ts`.
+- Never accept an arbitrary browser prompt, command, working directory, schema path, or source path in the Codex route.
+- Do not weaken the no-approval, no-denial, no-pricing, and human-approval guardrails.
