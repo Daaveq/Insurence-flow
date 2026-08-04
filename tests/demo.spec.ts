@@ -245,7 +245,7 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.getByText("Evidence review")).toBeVisible();
     await expect(page.getByText("Missing identifiers found")).toBeVisible();
     await expect(page.getByText("Communication log")).toBeVisible();
-    await expect(page.getByText("Customer request ready")).toBeVisible();
+    await expect(page.getByText("AI is drafting the customer email")).toBeVisible();
     await expect(page.getByText("Oh my bad, I see now it never uploaded")).toHaveCount(0);
     const handlerPane = page.getByRole("region", { name: "Front end handler view" });
     await expect(handlerPane.getByRole("button", { name: "Chat with this case agent" })).toBeVisible();
@@ -254,13 +254,8 @@ test.describe("Claims Copilot demo", () => {
     expect(handlerChatBox).not.toBeNull();
     expect(handlerChatBox!.width).toBeLessThanOrEqual(370);
     await page.getByRole("button", { name: "What happened while I was away?" }).click();
-    await expect(page.locator(".chat-agent").last()).toContainText("waiting for explicit handler approval");
+    await expect(page.locator(".chat-agent").last()).toContainText(/preparing a transparent customer request|prepared request is shown as sent/);
     await page.getByRole("button", { name: "Close case agent chat" }).click();
-    await expect(page.getByLabel("Subject")).toHaveValue(
-      "Information needed to prepare your mobile phone claim",
-    );
-    await expect(page.getByLabel("Message")).toHaveValue(/I’m If’s digital claims assistant/);
-    await expect(page.getByLabel("Message")).toHaveValue(/I do not make decisions about your claim/);
     await page.locator('[data-tour="source-damage"]').click();
     await expect(page.locator(".extractionLabel")).toHaveText("Agent observations");
     await expect(page.locator(".sourceText")).toContainText("Rule: Front and rear views supplied: Not confirmed");
@@ -277,8 +272,7 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator(".activityStep.stepLatest")).toContainText(
       "Draft the customer email",
     );
-    await page.getByRole("button", { name: "Approve & simulate send" }).click();
-    await expect(page.getByText("The handler approved the preparation email")).toBeVisible();
+    await expect(page.getByText("AI sent the preparation email")).toBeVisible({ timeout: 12_000 });
     await expect(page.locator(".writingIndicator")).toContainText("Customer is writing");
     await expect(page.locator(".communicationEntry").filter({ hasText: "Oh, my bad — I see now that it never uploaded" })).toBeVisible();
     await expect(page.locator(".communicationEntry").filter({ hasText: "Thanks, Lina — I’ve received the photo" })).toBeVisible();
