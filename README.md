@@ -6,6 +6,13 @@ The case and customer data are synthetic. Public If guidance inspired the termin
 
 ## What The Demo Shows
 
+The case selector contains two fixed synthetic scenarios:
+
+- Case 1: a routine damaged-phone claim with three specific evidence gaps
+- Case 2: a repair estimate with a hidden instruction aimed at the agent
+
+The second case shows the document being treated as untrusted evidence, the instruction being quarantined and surfaced, and any approval-style recommendation being rejected before it reaches the handler.
+
 - A recognizable incoming claim, policy snapshot, item details, and evidence
 - Live analysis through the locally authenticated Codex CLI
 - A bounded activity trace showing source loading, rule consultation, model execution, and validation
@@ -45,13 +52,13 @@ Click **Run copilot**. A live run normally takes roughly one minute, depending o
 - `src/app/page.tsx`: handler workspace and approval interactions
 - `src/app/api/analyze/route.ts`: streamed Codex CLI integration
 - `src/lib/demo-case.ts`: typed UI case data
-- `demo-context/claim.json`: synthetic incoming claim
-- `demo-context/evidence-register.md`: bounded evidence descriptions
+- `demo-context/claim.json` and `claim-injection.json`: two fixed synthetic cases
+- `demo-context/evidence-register.md` and `evidence-register-injection.md`: bounded evidence descriptions
 - `demo-context/handling-rules.md`: synthetic handling and guardrail rules
 - `demo-context/analysis-schema.json`: strict model output contract
 - `public/evidence/damaged-phone.png`: generated synthetic evidence photograph
 
-The server loads the three approved source files and pipes that packet to:
+The browser may choose only between the two allowlisted case IDs; it cannot send a prompt or path. The server loads the matching fixed source packet and pipes it to:
 
 ```text
 codex exec --json --ephemeral --sandbox read-only

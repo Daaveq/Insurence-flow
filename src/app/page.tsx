@@ -13,11 +13,12 @@ import {
   Paperclip,
   Play,
   RotateCcw,
+  ShieldAlert,
   ShieldCheck,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { demoCase, type AnalysisResult, type TraceEvent } from "@/lib/demo-case";
+import { demoCases, type AnalysisResult, type CaseId, type DemoCase, type TraceEvent } from "@/lib/demo-case";
 
 type RunState = "idle" | "running" | "complete" | "error";
 type SourceGroup = "agent" | "customer";
@@ -380,6 +381,7 @@ function TypewriterText({ text, animate }: { text: string; animate: boolean }) {
 }
 
 export default function Home() {
+  const [selectedCaseId, setSelectedCaseId] = useState<CaseId>("standard");
   const [tourStep, setTourStep] = useState(0);
   const [runState, setRunState] = useState<RunState>("idle");
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
@@ -400,7 +402,7 @@ export default function Home() {
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/sources", { signal: controller.signal })
+    fetch("/api/sources?case=" + selectedCaseId, { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error("Source files could not be loaded.");
         return response.json() as Promise<{ files: SourceFile[] }>;
@@ -415,8 +417,9 @@ export default function Home() {
         }
       });
     return () => controller.abort();
-  }, []);
+  }, [selectedCaseId]);
 
+  const demoCase = demoCases[selectedCaseId];
   const selectedSource = useMemo(
     () => sources.find((source) => source.id === selectedSourceId),
     [selectedSourceId, sources],
@@ -448,6 +451,15 @@ export default function Home() {
     setSources(initialSources.current.map((source) => ({ ...source })));
   };
 
+  const selectCase = (caseId: CaseId) => {
+    if (caseId === selectedCaseId || runState === "running") return;
+    resetDemo();
+    initialSources.current = [];
+    setSources([]);
+    setSourceError("");
+    setSelectedCaseId(caseId);
+  };
+
   const runAnalysis = async () => {
     analysisRequest.current?.abort();
     const controller = new AbortController();
@@ -465,7 +477,12 @@ export default function Home() {
     setSources(initialSources.current.map((source) => ({ ...source })));
 
     try {
-      const response = await fetch("/api/analyze", { method: "POST", signal: controller.signal });
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caseId: selectedCaseId }),
+        signal: controller.signal,
+      });
       if (!response.ok || !response.body) {
         const payload = await response.json().catch(() => null);
         throw new Error(payload?.message ?? "Analysis could not be started.");
@@ -502,7 +519,9 @@ export default function Home() {
                 ? {
                     ...source,
                     content: mode === "replace" ? content : source.content,
-                    generatedContent: mode === "append" ? content : undefined,
+                    generatedContent: mode === "append"
+                      ? [source.generatedContent, content].filter(Boolean).join("\n\n")
+                      : undefined,
                     observationStatus: "generated",
                   }
                 : source,
@@ -569,6 +588,19 @@ export default function Home() {
           <div className="brandMark" aria-hidden="true">if</div>
           <div><strong>Claims Copilot</strong><span>Synthetic damaged-phone demo</span></div>
         </div>
+        <nav className="caseSwitcher" aria-label="Demo case">
+          {(Object.keys(demoCases) as CaseId[]).map((caseId, index) => (
+            <button
+              aria-pressed={selectedCaseId === caseId}
+              disabled={runState === "running"}
+              key={caseId}
+              onClick={() => selectCase(caseId)}
+            >
+              <span>Case {index + 1}</span>
+              <strong>{caseId === "standard" ? "Evidence gaps" : "Malicious document"}</strong>
+            </button>
+          ))}
+        </nav>
         <div className="headerActions">
           <RunStatus state={runState} />
           <button data-tour="reset-demo" className="secondaryButton" onClick={resetDemo}><RotateCcw size={16} />Reset demo</button>
@@ -581,14 +613,15 @@ export default function Home() {
 
       <main className="demoSplit">
         <section data-tour="handler-side" className="frontPanel" aria-label="Front end handler view">
-          <PanelHeader label="Front end" title="Damage claim" detail="Customer case" />
+          <PanelHeader label="Front end" title="Damage claim" detail={demoCase.scenarioLabel} />
           <div className="frontScroll">
-            <CaseSummary showSource={showSource} />
+            <CaseSummary demoCase={demoCase} showSource={showSource} />
             <FrontEndState
               state={runState} analysis={analysis} error={error} trace={trace}
               runAnalysis={runAnalysis} draftSubject={draftSubject} draftBody={draftBody}
               setDraftSubject={setDraftSubject} setDraftBody={setDraftBody}
               draftIsTyping={draftIsTyping} draftApproved={draftApproved} approveDraft={approveDraft}
+              demoCase={demoCase}
             />
           </div>
         </section>
@@ -624,7 +657,7 @@ function RunStatus({ state }: { state: RunState }) {
   return <span className={`runStatus runStatus-${state}`}><span />{labels[state]}</span>;
 }
 
-function CaseSummary({ showSource }: { showSource: (id: string) => void }) {
+function CaseSummary({ demoCase, showSource }: { demoCase: DemoCase; showSource: (id: string) => void }) {
   return (
     <section className="caseSummary">
       <div className="caseIdentity">
@@ -655,12 +688,13 @@ function CaseSummary({ showSource }: { showSource: (id: string) => void }) {
 
 function FrontEndState({
   state, analysis, error, trace, runAnalysis, draftSubject, draftBody,
-  setDraftSubject, setDraftBody, draftIsTyping, draftApproved, approveDraft,
+  setDraftSubject, setDraftBody, draftIsTyping, draftApproved, approveDraft, demoCase,
 }: {
   state: RunState; analysis: AnalysisResult | null; error: string; trace: TraceEvent[];
   runAnalysis: () => void; draftSubject: string; draftBody: string;
   setDraftSubject: (value: string) => void; setDraftBody: (value: string) => void;
   draftIsTyping: boolean; draftApproved: boolean; approveDraft: () => void;
+  demoCase: DemoCase;
 }) {
   if (state === "idle") return (
     <section className="startState"><Bot size={23} /><div><h2>Ready for review</h2><p>The agent will read the five files shown on the right.</p></div><button data-tour="run-copilot" className="primaryButton" onClick={runAnalysis}><Play size={16} fill="currentColor" />Run copilot</button></section>
@@ -672,8 +706,19 @@ function FrontEndState({
   if (state === "error") return <section className="errorState"><XCircle size={23} /><div><h2>Analysis failed</h2><p>{error}</p></div><button className="secondaryButton" onClick={runAnalysis}>Try again</button></section>;
   if (!analysis) return null;
 
+  const securityIssue = analysis.issues.find((issue) =>
+    issue.type === "risk" && /untrusted|instruction|document/i.test(issue.title + " " + issue.detail),
+  );
+
   return (
     <section className="emailResult">
+      {securityIssue && (
+        <div className="securityOutcome">
+          <ShieldAlert size={19} />
+          <div><span>Attack prevented</span><strong>{securityIssue.title}</strong><p>{securityIssue.detail}</p></div>
+          <em>Human Specialist Review</em>
+        </div>
+      )}
       <header className="emailResultHeader">
         <span className="emailIcon"><Mail size={19} /></span>
         <div><span>Automated output</span><h2>Email drafted for {demoCase.customer.name}</h2></div>
@@ -778,7 +823,7 @@ function SourcePane({ sources, selectedSource, selectedSourceId, workingSourceId
                 </pre>
               </div>
               {selectedSource.kind === "document" && selectedSource.generatedContent && (
-                <div className="generatedReview">
+                <div className={"generatedReview" + (/UNTRUSTED INSTRUCTION DETECTED/.test(selectedSource.generatedContent) ? " securityReview" : "")}>
                   <span className="extractionLabel">Agent rule review</span>
                   <pre>
                     <TypewriterText

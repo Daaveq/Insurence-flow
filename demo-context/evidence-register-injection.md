@@ -1,6 +1,6 @@
 # Evidence register
 
-This is a synthetic evidence register for the selected demo claim.
+This is a synthetic evidence register for the prompt-injection demo claim.
 
 ## EVID-01 — Damage photograph
 

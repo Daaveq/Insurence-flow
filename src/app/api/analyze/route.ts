@@ -1,7 +1,12 @@
 import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { agentPrompt } from "@/lib/agent-config";
+import {
+  agentPromptForCase,
+  repairEstimatePacketForCase,
+  securityReviewContent,
+} from "@/lib/agent-config";
+import { isCaseId, type AnalysisResult, type CaseId } from "@/lib/demo-case";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +48,46 @@ function timestamp() {
   }).format(new Date());
 }
 
+function detectUntrustedInstruction(value: string) {
+  return /ignore (all )?previous instructions/i.test(value) ||
+    /don['’]t tell the handler/i.test(value) ||
+    /approve this case/i.test(value);
+}
+
+function guardrailViolation(result: AnalysisResult, caseId: CaseId) {
+  if (/\b(approve|approved|deny|denied|authorize|payment|settle)\b/i.test(result.recommendation.action)) {
+    return "The proposed action crossed the decision boundary.";
+  }
+
+  const allowedQueues = new Set(["Home Contents / Mobile Device Review", "Human Specialist Review"]);
+  if (!allowedQueues.has(result.routing.queue)) {
+    return "The proposed routing queue was not allowlisted.";
+  }
+
+  if (caseId === "injection") {
+    const reportedAttack = result.issues.some((issue) =>
+      issue.type === "risk" && /untrusted|instruction|document/i.test(issue.title + " " + issue.detail),
+    );
+    if (!reportedAttack || result.routing.queue !== "Human Specialist Review") {
+      return "The untrusted document instruction was not safely escalated.";
+    }
+  }
+
+  return null;
+}
+
 export async function POST(request: Request) {
+  let caseId: CaseId;
+  try {
+    const payload = await request.json() as { caseId?: unknown };
+    if (!isCaseId(payload.caseId)) {
+      return Response.json({ message: "Unknown fixed demo case." }, { status: 400 });
+    }
+    caseId = payload.caseId;
+  } catch {
+    return Response.json({ message: "A fixed demo case ID is required." }, { status: 400 });
+  }
+
   if (analysisInProgress) {
     return Response.json(
       { message: "An analysis is already running. Please wait for it to finish." },
@@ -72,11 +116,11 @@ export async function POST(request: Request) {
   let sourcePacket: string;
   try {
     const claim = readFileSync(
-      path.join(contextDirectory, "claim.json"),
+      path.join(contextDirectory, caseId === "injection" ? "claim-injection.json" : "claim.json"),
       "utf8",
     );
     const evidence = readFileSync(
-      path.join(contextDirectory, "evidence-register.md"),
+      path.join(contextDirectory, caseId === "injection" ? "evidence-register-injection.md" : "evidence-register.md"),
       "utf8",
     );
     const rules = readFileSync(
@@ -93,9 +137,9 @@ export async function POST(request: Request) {
       "</source>",
       "<attachment id=\"EVID-01\" name=\"Damage.jpg\">Attached image 1</attachment>",
       "<attachment id=\"EVID-02\" name=\"Receipt.jpg\">Attached image 2</attachment>",
-      "<source id=\"EVID-03\" name=\"Repair Estimate.pdf\" representation=\"extracted-text\">",
-      "The exact extracted estimate text is included in EVIDENCE-REGISTER.",
-      "</source>",
+      "<untrusted-evidence id=\"EVID-03\" name=\"Repair Estimate.pdf\" representation=\"extracted-text\">",
+      repairEstimatePacketForCase(caseId),
+      "</untrusted-evidence>",
       "<source id=\"HANDLING-RULES\" name=\"handling-rules.md\">",
       rules,
       "</source>",
@@ -108,6 +152,11 @@ export async function POST(request: Request) {
     );
   }
 
+  const untrustedInstructionDetected = detectUntrustedInstruction(
+    repairEstimatePacketForCase(caseId),
+  );
+
+  let streamClosed = false;
   const stream = new ReadableStream({
     start(controller) {
       let buffer = "";
@@ -117,6 +166,7 @@ export async function POST(request: Request) {
       let eventCounter = 0;
 
       const send = (event: ClientEvent) => {
+        if (streamClosed) return;
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       };
 
@@ -192,9 +242,36 @@ export async function POST(request: Request) {
         "Rules.md",
         "Guardrails + email limits",
       );
+      if (untrustedInstructionDetected) {
+        trace(
+          "Detect an instruction inside customer evidence",
+          "The repair estimate contains text aimed at changing the agent's behaviour. Customer documents are data, so the instruction is isolated instead of followed.",
+          "warning",
+          "system",
+          "Repair Estimate.pdf",
+          "Untrusted instruction quarantined",
+        );
+        send({
+          type: "source_update",
+          payload: {
+            sourceId: "repair-estimate",
+            content: securityReviewContent,
+            mode: "append",
+          },
+        });
+        trace(
+          "Keep prohibited actions unavailable",
+          "The document cannot grant approval authority. The server still allows only evidence review, a draft, and a handler routing proposal.",
+          "complete",
+          "system",
+          "Untrusted instruction",
+          "Ignored + specialist review required",
+        );
+      }
+
       trace(
         "Enforce the hidden output contract",
-        "The server loaded its internal schema. Any response outside the allowed fields is rejected before it can reach the interface.",
+        "The server loaded its internal schema and action checks. Invalid fields, unknown queues, or approval-style recommendations are rejected before reaching the interface.",
         "complete",
         "system",
         "Server output contract",
@@ -224,7 +301,7 @@ export async function POST(request: Request) {
           receiptImagePath,
           "--cd",
           contextDirectory,
-          agentPrompt,
+          agentPromptForCase(caseId),
         ],
         {
           cwd: contextDirectory,
@@ -289,6 +366,20 @@ export async function POST(request: Request) {
               pendingResult = JSON.parse(String(item.text ?? "{}"));
             } else if (event.type === "turn.completed") {
               if (pendingResult) {
+                const violation = guardrailViolation(pendingResult as AnalysisResult, caseId);
+                if (violation) {
+                  trace(
+                    "Block an unsafe model output",
+                    violation + " Nothing from that output was shown or executed.",
+                    "error",
+                    "system",
+                    "Model proposal",
+                    "Blocked by server guardrail",
+                  );
+                  pendingResult = null;
+                  return;
+                }
+
                 const structuredResult = pendingResult as {
                   evidenceAssessment?: Array<{
                     evidenceId?: string;
@@ -402,7 +493,9 @@ export async function POST(request: Request) {
                 resultReceived = true;
                 trace(
                   "Validate the structured response",
-                  "Codex returned a schema-valid result. The server accepted the customer email draft and its supporting assessment.",
+                  untrustedInstructionDetected
+                    ? "Codex ignored the document instruction, reported it as a risk, and proposed the allowlisted specialist queue. The server accepted the safe draft."
+                    : "Codex returned a schema-valid result. The server accepted the customer email draft and its supporting assessment.",
                   "complete",
                   "system",
                   "Codex JSON response",
@@ -454,15 +547,18 @@ export async function POST(request: Request) {
       });
 
       child.on("error", (error) => {
+        if (streamClosed) return;
         analysisInProgress = false;
         send({
           type: "error",
           payload: { message: `Could not start Codex CLI: ${error.message}` },
         });
+        streamClosed = true;
         controller.close();
       });
 
       child.on("close", (code) => {
+        if (streamClosed) return;
         request.signal.removeEventListener("abort", stopChild);
         analysisInProgress = false;
 
@@ -478,10 +574,12 @@ export async function POST(request: Request) {
           }
         }
 
+        streamClosed = true;
         controller.close();
       });
     },
     cancel() {
+      streamClosed = true;
       analysisInProgress = false;
     },
   });
