@@ -66,7 +66,7 @@ const sharedCase = {
   incident: {
     occurredAt: "02 Aug 2026, 18:20",
     location: "Customer's home, Stockholm",
-    description: "Phone slipped from the customer's hand while being removed from a jacket pocket and fell approximately one metre onto a tiled kitchen floor.",
+    description: "I took my phone out of my jacket pocket in the kitchen. It slipped from my hand and landed face-down on the tiled floor, about one metre down. The glass cracked, and the touch screen now only works sometimes.",
   },
   device: {
     make: "Apple",

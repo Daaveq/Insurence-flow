@@ -94,6 +94,8 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.getByRole("button", { name: /Lina Berg/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Erik Holm/ })).toBeVisible();
     await expect(page.locator(".claimRow")).toHaveCount(16);
+    await expect(page.getByLabel("Search claims")).toHaveCount(0);
+    await expect(page.getByText(/agents preparing cases|need human attention/i)).toHaveCount(0);
 
     const disabledClaim = page.locator(".claimRow-disabled").filter({ hasText: "Maja Nilsson" });
     await disabledClaim.hover();
@@ -102,6 +104,7 @@ test.describe("Claims Copilot demo", () => {
 
     await page.getByRole("button", { name: /Lina Berg/ }).click();
     await expect(page.locator(".caseId")).toHaveText("IF-CLM-260803-1842");
+    await expect(page.getByText(/I took my phone out of my jacket pocket/)).toBeVisible();
     await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
     await expect(page.getByText("Bound to IF-CLM-260803-1842")).toBeVisible();
   });
@@ -235,18 +238,16 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.getByText("Working with now")).toBeVisible();
     releaseResponse();
 
-    await expect(
-      page.getByRole("heading", { name: "Email drafted for Lina Berg" }),
-    ).toBeVisible();
+    await expect(page.locator(".itemActive")).toContainText("Damage photo assessed");
     await expect(page.getByText("Claim preparation timeline")).toBeVisible();
     await expect(page.getByText("Evidence review")).toBeVisible();
     await expect(page.getByText("Missing identifiers found")).toBeVisible();
-    await expect(page.getByText("Email ready for approval")).toBeVisible();
     await expect(page.getByText("Communication log")).toBeVisible();
+    await expect(page.getByText("Customer request ready")).toBeVisible();
     await expect(page.getByText("Oh my bad, I see now it never uploaded")).toHaveCount(0);
     await page.getByRole("button", { name: "Chat with this case agent" }).click();
     await page.getByRole("button", { name: "What happened while I was away?" }).click();
-    await expect(page.locator(".chat-agent").last()).toContainText("waiting for handler approval");
+    await expect(page.locator(".chat-agent").last()).toContainText("waiting for explicit handler approval");
     await page.getByRole("button", { name: "Audit log" }).click();
     await expect(page.getByLabel("Subject")).toHaveValue(
       "Your mobile phone claim",
@@ -269,19 +270,33 @@ test.describe("Claims Copilot demo", () => {
     );
     await page.getByRole("button", { name: "Approve & simulate send" }).click();
     await expect(page.getByText("The handler approved the preparation email")).toBeVisible();
-    await expect(page.getByRole("heading", { name: "The request is now waiting for the customer" })).toBeVisible();
-    await page.getByRole("button", { name: /Incoming email/ }).click();
+    await expect(page.locator(".writingIndicator")).toContainText("Customer is writing");
     await expect(page.getByText(/Oh, my bad — I see now that it never uploaded/)).toBeVisible();
     await expect(page.getByText(/Thanks, Lina — I have received the photo/)).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Ready for handler review" })).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText("Explore the claim before the final email arrives")).toBeVisible({ timeout: 6_000 });
+
+    const firstExchange = await page.locator(".communicationEntry header strong").allTextContents();
+    expect(firstExchange.slice(0, 3)).toEqual([
+      "Photo received and processed",
+      "Missing photo attached",
+      "Your mobile phone claim",
+    ]);
+
+    await page.getByRole("button", { name: /New email incoming/ }).click();
     await expect(page.getByText(/They came back to me — here is the updated estimate/)).toBeVisible();
-    await expect(page.getByText(/your handler will have the prepared information needed/)).toBeVisible();
+    await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/Your handler now has the prepared information needed/)).toBeVisible();
+    const completedExchange = await page.locator(".communicationEntry header strong").allTextContents();
+    expect(completedExchange.slice(0, 3)).toEqual([
+      "Case ready for handler review",
+      "Preparation completed",
+      "Updated estimate attached",
+    ]);
 
     await page.getByRole("button", { name: "Reset case" }).click();
     await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
-    await expect(
-      page.getByRole("heading", { name: "Email drafted for Lina Berg" }),
-    ).toHaveCount(0);
+    await expect(page.locator(".communicationEntry")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /New email incoming/ })).toHaveCount(0);
     await expect(page.getByText("Waiting for the handler")).toBeVisible();
     await expect(page.getByText("Hard boundaries")).toBeVisible();
     await page.getByRole("button", { name: /Damage.jpg/ }).first().click();

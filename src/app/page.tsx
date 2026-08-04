@@ -16,7 +16,6 @@ import {
   Paperclip,
   Play,
   RotateCcw,
-  Search,
   Send,
   ShieldAlert,
   ShieldCheck,
@@ -29,7 +28,7 @@ import { demoCases, type AnalysisResult, type CaseId, type DemoCase, type TraceE
 
 type RunState = "idle" | "running" | "complete" | "error";
 type WorkspaceView = "portfolio" | "claim";
-type FollowUpStage = "none" | "waiting_customer" | "customer_replied" | "waiting_estimate" | "ready";
+type FollowUpStage = "none" | "drafting_request" | "draft_ready" | "request_sent" | "customer_typing" | "customer_replied" | "agent_replying" | "paused" | "estimate_incoming" | "processing_estimate" | "ready";
 type AgentPaneTab = "audit" | "chat";
 type SourceGroup = "agent" | "customer";
 type SourceKind = "markdown" | "image" | "document";
@@ -608,6 +607,7 @@ export default function Home() {
             setAnalysis(result);
             setDraftSubject(result.customerDraft.subject);
             setDraftIsTyping(true);
+            setFollowUpStage("drafting_request");
             void revealText(result.customerDraft.body, setDraftBody, controller.signal)
               .finally(() => {
                 if (version === requestVersion.current) setDraftIsTyping(false);
@@ -635,58 +635,83 @@ export default function Home() {
   };
 
   const approveDraft = () => {
+    if (followUpStage !== "draft_ready") return;
     setDraftApproved(true);
-    setFollowUpStage("waiting_customer");
+    setFollowUpStage("request_sent");
     setTrace((events) => [...events, {
       id: crypto.randomUUID(),
       timestamp: currentTime(),
       title: "The handler approved the preparation email",
-      detail: "The reviewed message is locked and shown as sent inside this synthetic demo. No real external email is sent.",
+      detail: "The reviewed message is shown as sent inside this synthetic demo. No real external email is sent.",
       status: "complete",
       kind: "human",
-      input: "Handler approval",
+      input: "Handler-approved information request",
       output: "Synthetic email sent · awaiting customer",
     }]);
   };
 
-  const receiveCustomerReply = () => {
-    if (followUpStage !== "waiting_customer") return;
-    setFollowUpStage("customer_replied");
+  const receiveUpdatedEstimate = () => {
+    if (followUpStage !== "paused") return;
+    setFollowUpStage("estimate_incoming");
     setTrace((events) => [...events, {
       id: crypto.randomUUID(),
       timestamp: currentTime(),
-      title: "Customer reply received",
-      detail: "The agent associated the missing damage photo with the claim and recorded that a revised estimate is still expected.",
+      title: "Updated estimate email received",
+      detail: "The customer supplied the revised repair estimate with the missing device identifier.",
       status: "complete",
       kind: "analysis",
-      input: "Customer email + attachment",
-      output: "Damage photo received · estimate pending",
+      input: "Customer email + revised estimate",
+      output: "Estimate queued for agent review",
     }]);
   };
 
   useEffect(() => {
-    if (followUpStage !== "customer_replied") return;
-    const timeout = window.setTimeout(() => setFollowUpStage("waiting_estimate"), 650);
-    return () => window.clearTimeout(timeout);
+    if (followUpStage === "none") return;
+    const frame = window.requestAnimationFrame(() => {
+      document.querySelector(".communicationLog")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [followUpStage]);
 
   useEffect(() => {
-    if (followUpStage !== "waiting_estimate") return;
+    if (followUpStage === "drafting_request" && draftIsTyping) return;
+    const transitions: Partial<Record<FollowUpStage, { next: FollowUpStage; delay: number }>> = {
+      drafting_request: { next: "draft_ready", delay: 700 },
+      request_sent: { next: "customer_typing", delay: 650 },
+      customer_typing: { next: "customer_replied", delay: 1400 },
+      customer_replied: { next: "agent_replying", delay: 700 },
+      agent_replying: { next: "paused", delay: 1400 },
+      estimate_incoming: { next: "processing_estimate", delay: 650 },
+      processing_estimate: { next: "ready", delay: 1600 },
+    };
+    const transition = transitions[followUpStage];
+    if (!transition) return;
     const timeout = window.setTimeout(() => {
-      setFollowUpStage("ready");
-      setTrace((events) => [...events, {
-        id: crypto.randomUUID(),
-        timestamp: currentTime(),
-        title: "Updated estimate received and processed",
-        detail: "The device identifier is now present. The preparation file is complete and ready for a handler to make the remaining decisions.",
-        status: "complete",
-        kind: "analysis",
-        input: "Customer email + revised estimate",
-        output: "Case ready for handler review",
-      }]);
-    }, 2800);
+      setFollowUpStage(transition.next);
+      if (transition.next === "customer_replied") {
+        setTrace((events) => [...events, {
+          id: crypto.randomUUID(), timestamp: currentTime(), title: "Customer reply received",
+          detail: "The missing damage photo arrived, and Lina confirmed that the revised estimate is still coming.",
+          status: "complete", kind: "analysis", input: "Customer email + attachment", output: "Damage photo received · estimate pending",
+        }]);
+      }
+      if (transition.next === "paused") {
+        setTrace((events) => [...events, {
+          id: crypto.randomUUID(), timestamp: currentTime(), title: "AI acknowledgement sent in demo",
+          detail: "The agent confirmed receipt of the photo and explained that it is waiting for the revised estimate.",
+          status: "complete", kind: "analysis", input: "Customer reply", output: "Synthetic acknowledgement logged",
+        }]);
+      }
+      if (transition.next === "ready") {
+        setTrace((events) => [...events, {
+          id: crypto.randomUUID(), timestamp: currentTime(), title: "Updated estimate received and processed",
+          detail: "The device identifier is now present. The preparation file is complete and ready for a handler to make the remaining decisions.",
+          status: "complete", kind: "analysis", input: "Customer email + revised estimate", output: "Case ready for handler review",
+        }]);
+      }
+    }, transition.delay);
     return () => window.clearTimeout(timeout);
-  }, [followUpStage]);
+  }, [draftIsTyping, followUpStage]);
 
   return (
     <div className="appShell">
@@ -722,16 +747,16 @@ export default function Home() {
             </div>
             <div className="frontScroll">
               <CaseSummary demoCase={demoCase} showSource={showSource} />
-              <ClaimTimeline demoCase={demoCase} state={runState} followUpStage={followUpStage} securityStop={securityStop} />
-              <FrontEndState
-                state={runState} analysis={analysis} error={error} trace={trace}
-                runAnalysis={runAnalysis} draftSubject={draftSubject} draftBody={draftBody}
-                setDraftSubject={setDraftSubject} setDraftBody={setDraftBody}
-                draftIsTyping={draftIsTyping} draftApproved={draftApproved} approveDraft={approveDraft}
-                demoCase={demoCase} securityStop={securityStop}
+              <ClaimTimeline demoCase={demoCase} state={runState} followUpStage={followUpStage} workingSourceIds={workingSourceIds} securityStop={securityStop} />
+              <FrontEndState state={runState} analysis={analysis} error={error} trace={trace} runAnalysis={runAnalysis} securityStop={securityStop} />
+              <CommunicationLog
+                demoCase={demoCase} state={runState} stage={followUpStage}
+                draftSubject={draftSubject} setDraftSubject={setDraftSubject}
+                draftBody={draftBody} setDraftBody={setDraftBody}
+                draftIsTyping={draftIsTyping} draftApproved={draftApproved}
+                approveDraft={approveDraft} receiveUpdatedEstimate={receiveUpdatedEstimate}
+                securityStop={securityStop}
               />
-              <DemoContinuation stage={followUpStage} draftApproved={draftApproved} receiveCustomerReply={receiveCustomerReply} />
-              <CommunicationLog demoCase={demoCase} state={runState} stage={followUpStage} draftBody={draftBody} securityStop={securityStop} />
             </div>
           </>}
         </section>
@@ -770,10 +795,6 @@ function ClaimsOverview({ selectCase }: { selectCase: (caseId: CaseId) => void }
         </div>
         <div className="overviewMetric"><strong>16</strong><span>Open claims</span><small>2 available in this demo</small></div>
       </header>
-      <div className="overviewTools">
-        <label><Search size={14} /><input aria-label="Search claims" placeholder="Search claims" /></label>
-        <div><span><Sparkles size={13} />6 agents preparing cases</span><span>3 need human attention</span></div>
-      </div>
       <section className="claimQueue" aria-label="Claims overview">
         <header>
           <span>Claim and customer</span><span>Description</span><span>Received</span><span>Preparation status</span><span />
@@ -814,23 +835,26 @@ function DormantAgent() {
   );
 }
 
-function ClaimTimeline({ demoCase, state, followUpStage, securityStop }: {
+function ClaimTimeline({ demoCase, state, followUpStage, workingSourceIds, securityStop }: {
   demoCase: DemoCase;
   state: RunState;
   followUpStage: FollowUpStage;
+  workingSourceIds: string[];
   securityStop: SecurityStop | null;
 }) {
+  type TimelineItem = { label: string; done: boolean; active?: boolean; warning?: boolean };
+  type TimelineStage = { label: string; status: string; detail: string; items: TimelineItem[] };
   const isInjection = demoCase === demoCases.injection;
-  const rank: Record<FollowUpStage, number> = { none: 0, waiting_customer: 1, customer_replied: 2, waiting_estimate: 3, ready: 4 };
-  const followUpRank = rank[followUpStage];
-  const reviewed = state === "complete";
+  const order: FollowUpStage[] = ["none", "drafting_request", "draft_ready", "request_sent", "customer_typing", "customer_replied", "agent_replying", "paused", "estimate_incoming", "processing_estimate", "ready"];
+  const reached = (stage: FollowUpStage) => order.indexOf(followUpStage) >= order.indexOf(stage);
+  const reviewed = state === "complete" || followUpStage !== "none";
   const running = state === "running";
+  const activeEvidence = running ? workingSourceIds[0] : undefined;
+  const followUpActive = !["none", "paused", "ready"].includes(followUpStage);
 
-  const stages = isInjection ? [
+  const stages: TimelineStage[] = isInjection ? [
     {
-      label: "Claim intake",
-      status: "complete",
-      detail: "Initial submission captured",
+      label: "Claim intake", status: "complete", detail: "Initial submission captured",
       items: [
         { label: "Loss details registered", done: true },
         { label: "Customer and policy linked", done: true },
@@ -838,18 +862,16 @@ function ClaimTimeline({ demoCase, state, followUpStage, securityStop }: {
       ],
     },
     {
-      label: "Document safety",
-      status: securityStop ? "warning" : running ? "active" : "waiting",
+      label: "Document safety", status: securityStop ? "warning" : running ? "active" : "waiting",
       detail: securityStop ? "Untrusted instruction detected" : "Waiting for safety inspection",
       items: [
-        { label: "Visible content isolated", done: Boolean(securityStop) },
+        { label: "Visible content isolated", done: Boolean(securityStop), active: running && !securityStop },
         { label: "Hidden machine text scanned", done: Boolean(securityStop) },
         { label: "Override attempt identified", done: Boolean(securityStop), warning: Boolean(securityStop) },
       ],
     },
     {
-      label: "Automation stop",
-      status: securityStop ? "warning" : "waiting",
+      label: "Automation stop", status: securityStop ? "warning" : "waiting",
       detail: securityStop ? "All further actions blocked" : "Not started",
       items: [
         { label: "No customer communication", done: Boolean(securityStop) },
@@ -858,20 +880,17 @@ function ClaimTimeline({ demoCase, state, followUpStage, securityStop }: {
       ],
     },
     {
-      label: "Specialist handoff",
-      status: securityStop ? "active" : "waiting",
+      label: "Specialist handoff", status: securityStop ? "active" : "waiting",
       detail: securityStop ? "Human Specialist Review" : "Not started",
       items: [
         { label: "Finding and location preserved", done: Boolean(securityStop) },
         { label: "Clean estimate required", done: Boolean(securityStop) },
-        { label: "Human review pending", done: false },
+        { label: "Human review pending", done: false, active: Boolean(securityStop) },
       ],
     },
   ] : [
     {
-      label: "Claim intake",
-      status: "complete",
-      detail: "Submission captured",
+      label: "Claim intake", status: "complete", detail: "Submission captured",
       items: [
         { label: "Loss details registered", done: true },
         { label: "Customer and policy linked", done: true },
@@ -879,35 +898,32 @@ function ClaimTimeline({ demoCase, state, followUpStage, securityStop }: {
       ],
     },
     {
-      label: "Evidence review",
-      status: reviewed ? "complete" : running ? "active" : "waiting",
+      label: "Evidence review", status: reviewed ? "complete" : running ? "active" : "waiting",
       detail: reviewed ? "Evidence gaps identified" : running ? "Checking each source" : "Waiting to start",
       items: [
-        { label: "Damage photo assessed", done: reviewed },
-        { label: "Purchase details checked", done: reviewed },
-        { label: "Repair estimate checked", done: reviewed },
-        { label: "Missing identifiers found", done: reviewed },
+        { label: "Damage photo assessed", done: reviewed, active: activeEvidence === "damage" },
+        { label: "Purchase details checked", done: reviewed, active: activeEvidence === "receipt" },
+        { label: "Repair estimate checked", done: reviewed, active: activeEvidence === "repair-estimate" },
+        { label: "Missing identifiers found", done: reviewed, active: running && ["rules", "repair-estimate"].includes(activeEvidence ?? "") },
       ],
     },
     {
-      label: "Customer follow-up",
-      status: followUpRank >= 4 ? "complete" : followUpRank >= 1 ? "active" : "waiting",
-      detail: followUpRank >= 4 ? "All requested evidence received" : followUpRank >= 1 ? "Collecting missing information" : reviewed ? "Email ready for approval" : "Not started",
+      label: "Customer follow-up", status: followUpStage === "ready" ? "complete" : followUpActive ? "active" : "waiting",
+      detail: followUpStage === "ready" ? "All requested evidence received" : followUpStage === "paused" ? "Waiting for updated estimate" : followUpActive ? "Live customer exchange" : reviewed ? "Request ready to draft" : "Not started",
       items: [
-        { label: "Request prepared", done: reviewed },
-        { label: "Approved email sent in demo", done: followUpRank >= 1 },
-        { label: "Missing photo received", done: followUpRank >= 2 },
-        { label: "Updated estimate received", done: followUpRank >= 4 },
+        { label: "Request prepared", done: reached("draft_ready"), active: followUpStage === "drafting_request" },
+        { label: "Approved request sent in demo", done: reached("request_sent"), active: followUpStage === "request_sent" },
+        { label: "Missing photo processed", done: reached("paused"), active: ["customer_replied", "agent_replying"].includes(followUpStage) },
+        { label: "Updated estimate processed", done: followUpStage === "ready", active: ["estimate_incoming", "processing_estimate"].includes(followUpStage) },
       ],
     },
     {
-      label: "Handler handoff",
-      status: followUpStage === "ready" ? "ready" : "waiting",
+      label: "Handler handoff", status: followUpStage === "ready" ? "ready" : "waiting",
       detail: followUpStage === "ready" ? "Ready for handler review" : "Waiting for complete file",
       items: [
         { label: "Evidence grouped", done: followUpStage === "ready" },
         { label: "Communications summarized", done: followUpStage === "ready" },
-        { label: "Human claim decision pending", done: false },
+        { label: "Human claim decision pending", done: false, active: false },
       ],
     },
   ];
@@ -919,7 +935,7 @@ function ClaimTimeline({ demoCase, state, followUpStage, securityStop }: {
         {stages.map((stage, index) => (
           <article className={"timelineStage timeline-" + stage.status} key={stage.label}>
             <header><span className="timelineNode">{stage.status === "complete" || stage.status === "ready" ? <Check size={12} /> : index + 1}</span><div><strong>{stage.label}</strong><small>{stage.detail}</small></div></header>
-            <ul>{stage.items.map((item) => <li className={item.warning ? "itemWarning" : item.done ? "itemDone" : ""} key={item.label}>{item.done ? <Check size={10} /> : <span />}{item.label}</li>)}</ul>
+            <ul>{stage.items.map((item) => <li className={[item.warning ? "itemWarning" : item.done ? "itemDone" : "", item.active ? "itemActive" : ""].filter(Boolean).join(" ")} key={item.label}>{item.done && !item.active ? <Check size={10} /> : <span />}{item.label}</li>)}</ul>
           </article>
         ))}
       </div>
@@ -927,72 +943,93 @@ function ClaimTimeline({ demoCase, state, followUpStage, securityStop }: {
   );
 }
 
-function DemoContinuation({ stage, draftApproved, receiveCustomerReply }: {
-  stage: FollowUpStage;
-  draftApproved: boolean;
-  receiveCustomerReply: () => void;
-}) {
-  if (!draftApproved) return null;
-  if (stage === "waiting_customer") return (
-    <section className="demoContinuation pauseMoment">
-      <div><span>Demo pause</span><h2>The request is now waiting for the customer</h2><p>Take a moment to inspect the agent&apos;s sources, evidence checks, email, and audit trail. Continue when you are ready to simulate the customer&apos;s reply.</p></div>
-      <button className="incomingEmailButton" onClick={receiveCustomerReply}><Mail size={16} /><span><strong>Incoming email</strong><small>Customer reply + missing photo</small></span><ArrowRight size={15} /></button>
-    </section>
-  );
-  if (stage === "customer_replied") return (
-    <section className="demoContinuation processingMoment"><CircleDashed className="spin" size={20} /><div><span>Agent processing reply</span><h2>Photo received and associated with the claim</h2><p>The AI is confirming the attachment and preparing its response.</p></div></section>
-  );
-  if (stage === "waiting_estimate") return (
-    <section className="demoContinuation waitingMoment"><CircleDashed className="spin" size={20} /><div><span>Waiting for final item</span><h2>AI replied — updated estimate still expected</h2><p>A second customer email will arrive in a few seconds.</p></div></section>
-  );
-  if (stage === "ready") return (
-    <section className="demoContinuation readyMoment"><span><Check size={20} /></span><div><small>Preparation complete</small><h2>Ready for handler review</h2><p>The requested evidence is collected, communications are summarized, and the human decision points are clearly separated.</p></div><em>Human decision needed</em></section>
-  );
-  return null;
-}
-
-function CommunicationLog({ demoCase, state, stage, draftBody, securityStop }: {
+function CommunicationLog({
+  demoCase, state, stage, draftSubject, setDraftSubject, draftBody, setDraftBody,
+  draftIsTyping, draftApproved, approveDraft, receiveUpdatedEstimate, securityStop,
+}: {
   demoCase: DemoCase;
   state: RunState;
   stage: FollowUpStage;
+  draftSubject: string;
+  setDraftSubject: (value: string) => void;
   draftBody: string;
+  setDraftBody: (value: string) => void;
+  draftIsTyping: boolean;
+  draftApproved: boolean;
+  approveDraft: () => void;
+  receiveUpdatedEstimate: () => void;
   securityStop: SecurityStop | null;
 }) {
-  const rank: Record<FollowUpStage, number> = { none: 0, waiting_customer: 1, customer_replied: 2, waiting_estimate: 3, ready: 4 };
-  const followUpRank = rank[stage];
-  const standardMessages = [];
-  if (state === "complete" && followUpRank >= 1) standardMessages.push(
-    { actor: "If digital claims assistant", direction: "Outgoing", time: "09:45", title: "Missing information requested", body: draftBody || "Requested the missing rear photo and matching device identifier.", tone: "ai" },
+  type MessageTone = "ai" | "human" | "system" | "security";
+  type CommunicationMessage = { actor: string; direction: string; time: string; title: string; body: string; tone: MessageTone; attachment?: string };
+  const order: FollowUpStage[] = ["none", "drafting_request", "draft_ready", "request_sent", "customer_typing", "customer_replied", "agent_replying", "paused", "estimate_incoming", "processing_estimate", "ready"];
+  const reached = (target: FollowUpStage) => order.indexOf(stage) >= order.indexOf(target);
+  const chronological: CommunicationMessage[] = [];
+  if (reached("request_sent")) chronological.push(
+    { actor: "If digital claims assistant", direction: "Outgoing", time: "09:45", title: draftSubject || "Missing information requested", body: draftBody || "Requested the missing rear photo and matching device identifier.", tone: "ai" },
   );
-  if (followUpRank >= 2) standardMessages.push(
-    { actor: demoCase.customer.name, direction: "Incoming", time: "10:12", title: "Customer replied with missing photo", body: "Oh, my bad — I see now that it never uploaded. Here it is. Regarding the repair, I asked them to update the estimate. It should be coming soon!", tone: "human" },
-    { actor: "If digital claims assistant", direction: "Outgoing", time: "10:13", title: "Photo received and processed", body: "Thanks, Lina — I have received the photo and added it to your claim. I am now only waiting for the updated repair estimate. I cannot make a decision on your claim; a handler will review the prepared file.", tone: "ai" },
+  if (reached("customer_replied")) chronological.push(
+    { actor: demoCase.customer.name, direction: "Incoming", time: "10:12", title: "Missing photo attached", body: "Oh, my bad — I see now that it never uploaded. Here it is. Regarding the repair, I asked them to update the estimate. It should be coming soon!", tone: "human", attachment: "rear-device-photo.jpg" },
   );
-  if (followUpRank >= 4) standardMessages.push(
-    { actor: demoCase.customer.name, direction: "Incoming", time: "10:16", title: "Updated estimate attached", body: "They came back to me — here is the updated estimate.", tone: "human" },
-    { actor: "If digital claims assistant", direction: "Outgoing", time: "10:17", title: "Preparation completed", body: "Perfect, thank you! I have received and processed the updated estimate. That is everything I can collect for now, and your handler will have the prepared information needed to start reviewing the case.", tone: "ai" },
-    { actor: "Case agent", direction: "Internal", time: "10:17", title: "Case ready for handler", body: "Evidence and communications prepared. No coverage, compensation, deductible, repair authorization, or claim outcome decision was made.", tone: "system" },
+  if (reached("paused")) chronological.push(
+    { actor: "If digital claims assistant", direction: "Outgoing", time: "10:13", title: "Photo received and processed", body: "Thanks, Lina — I have received the photo and added it to your claim. I am now only waiting for the updated repair estimate. A handler will review the prepared file and make any claim decisions.", tone: "ai" },
+  );
+  if (reached("estimate_incoming")) chronological.push(
+    { actor: demoCase.customer.name, direction: "Incoming", time: "10:16", title: "Updated estimate attached", body: "They came back to me — here is the updated estimate.", tone: "human", attachment: "updated-repair-estimate.pdf" },
+  );
+  if (stage === "ready") chronological.push(
+    { actor: "If digital claims assistant", direction: "Outgoing", time: "10:17", title: "Preparation completed", body: "Perfect, thank you! I have received and processed the updated estimate. That is everything I can collect for now. Your handler now has the prepared information needed to start reviewing the case.", tone: "ai" },
+    { actor: "Case agent", direction: "Internal", time: "10:17", title: "Case ready for handler review", body: "Evidence and communications prepared. No coverage, compensation, deductible, repair authorization, or claim outcome decision was made.", tone: "system" },
   );
   const messages = demoCase === demoCases.injection && securityStop ? [
-    { actor: "Safety control", direction: "Internal", time: "08:22", title: "All automated communication stopped", body: "An untrusted instruction was detected in the repair estimate. No customer or vendor message was created or sent.", tone: "security" },
-  ] : standardMessages;
+    { actor: "Safety control", direction: "Internal", time: "08:22", title: "All automated communication stopped", body: "An untrusted instruction was detected in the repair estimate. No customer or vendor message was created or sent.", tone: "security" as const },
+  ] : [...chronological].reverse();
+
+  const typing = stage === "drafting_request"
+    ? { actor: "AI assistant", label: "Drafting the missing-information email" }
+    : stage === "customer_typing"
+      ? { actor: demoCase.customer.name, label: "Customer is writing" }
+      : stage === "agent_replying"
+        ? { actor: "AI assistant", label: "Processing the photo and drafting a reply" }
+        : stage === "processing_estimate"
+          ? { actor: "AI assistant", label: "Reading the updated estimate and drafting a reply" }
+          : null;
 
   return (
-    <section className="communicationLog">
+    <section className={"communicationLog communicationStage-" + stage} aria-live="polite">
       <header>
         <div><MessageCircle size={15} /><strong>Communication log</strong></div>
-        <span>{messages.length ? messages.length + " entries" : state === "complete" ? "Draft prepared · nothing sent" : "No agent communication yet"}</span>
+        <span>{messages.length ? "Newest first · " + messages.length + " entries" : state === "complete" ? "Preparing first message" : "No agent communication yet"}</span>
       </header>
-      {!messages.length ? (
-        <div className="emptyCommunications"><Mail size={18} /><p>{state === "complete" ? "The customer request is prepared above. It will appear here only after handler approval in this demo." : "The case agent has not contacted anyone. Communications will appear here with a clear AI or human identity."}</p></div>
+      {(stage === "drafting_request" || stage === "draft_ready") && (
+        <div className="logDraftCard">
+          <header><span className="emailIcon"><Mail size={17} /></span><div><small>Handler approval required</small><strong>{stage === "drafting_request" ? "AI is drafting the customer email" : "Customer request ready"}</strong></div></header>
+          {stage === "drafting_request" ? null : <>
+            <label>Subject<input aria-label="Subject" value={draftSubject} onChange={(event) => setDraftSubject(event.target.value)} disabled={draftApproved} /></label>
+            <label>Message<textarea aria-label="Message" value={draftBody} onChange={(event) => setDraftBody(event.target.value)} disabled={draftApproved || draftIsTyping} rows={4} /></label>
+            <footer><span><ShieldCheck size={13} />Editable until the handler approves this synthetic send</span><button className="primaryButton" onClick={approveDraft} disabled={draftApproved || draftIsTyping}><Mail size={14} />Approve & simulate send</button></footer>
+          </>}
+        </div>
+      )}
+      {typing && <WritingIndicator label={typing.label} actor={typing.actor} />}
+      {stage === "paused" && (
+        <div className="logPause">
+          <div><span>Demo pause</span><strong>Explore the claim before the final email arrives</strong><p>The first exchange is complete. Review the sources, timeline, audit log, or case-agent chat, then continue when you are ready.</p></div>
+          <button className="incomingEmailButton" onClick={receiveUpdatedEstimate}><Mail size={16} /><span><strong>New email incoming</strong><small>Updated repair estimate</small></span><ArrowRight size={15} /></button>
+        </div>
+      )}
+      {stage === "ready" && <div className="logReady"><span><Check size={18} /></span><div><small>Preparation complete</small><strong>Ready for handler review</strong><p>All available information is organized; human decisions remain pending.</p></div></div>}
+      {!messages.length && !typing && stage !== "draft_ready" ? (
+        <div className="emptyCommunications"><Mail size={18} /><p>The case agent has not contacted anyone. Communications will appear here with a clear AI or human identity.</p></div>
       ) : <div className="communicationEntries">
-        {messages.map((message) => (
-          <article className={"communicationEntry communication-" + message.tone} key={message.time + message.title}>
+        {messages.map((message, index) => (
+          <article className={"communicationEntry communication-" + message.tone + (index === 0 ? " communicationLatest" : "")} key={message.time + message.title}>
             <span className="actorIcon">{message.tone === "ai" ? <Bot size={14} /> : message.tone === "human" ? <UserRound size={14} /> : message.tone === "security" ? <ShieldAlert size={14} /> : <Mail size={14} />}</span>
             <div>
               <header><strong>{message.title}</strong><time>{message.time}</time></header>
-              <div className="communicationMeta"><span>{message.actor}</span><i>{message.direction}</i>{message.tone === "ai" && <em>AI assistant</em>}</div>
+              <div className="communicationMeta"><span>{message.actor}</span><i>{message.direction}</i>{message.tone === "ai" && <em>AI assistant</em>}{message.tone === "human" && <em className="humanBadge">Customer</em>}</div>
               <p>{message.body}</p>
+              {message.attachment && <button className="messageAttachment"><Paperclip size={11} />{message.attachment}</button>}
             </div>
           </article>
         ))}
@@ -1000,6 +1037,10 @@ function CommunicationLog({ demoCase, state, stage, draftBody, securityStop }: {
       <footer><ShieldCheck size={13} />Synthetic demo exchange · no real email is sent</footer>
     </section>
   );
+}
+
+function WritingIndicator({ label, actor }: { label: string; actor?: string }) {
+  return <div className="writingIndicator"><span className="writingAvatar">{actor?.includes("Lina") ? <UserRound size={13} /> : <Bot size={13} />}</span><div><small>{actor ?? "AI assistant"}</small><strong>{label}</strong></div><i><b /><b /><b /></i></div>;
 }
 
 function PanelHeader({ label, title, detail }: { label: string; title: string; detail: string }) {
@@ -1040,16 +1081,12 @@ function CaseSummary({ demoCase, showSource }: { demoCase: DemoCase; showSource:
   );
 }
 
-function FrontEndState({
-  state, analysis, error, trace, runAnalysis, draftSubject, draftBody,
-  setDraftSubject, setDraftBody, draftIsTyping, draftApproved, approveDraft, demoCase,
-  securityStop,
-}: {
-  state: RunState; analysis: AnalysisResult | null; error: string; trace: TraceEvent[];
-  runAnalysis: () => void; draftSubject: string; draftBody: string;
-  setDraftSubject: (value: string) => void; setDraftBody: (value: string) => void;
-  draftIsTyping: boolean; draftApproved: boolean; approveDraft: () => void;
-  demoCase: DemoCase;
+function FrontEndState({ state, analysis, error, trace, runAnalysis, securityStop }: {
+  state: RunState;
+  analysis: AnalysisResult | null;
+  error: string;
+  trace: TraceEvent[];
+  runAnalysis: () => void;
   securityStop: SecurityStop | null;
 }) {
   if (state === "idle") return (
@@ -1072,37 +1109,7 @@ function FrontEndState({
     return <section className="runningState" aria-live="polite"><CircleDashed className="spin" size={23} /><div><span>Agent running</span><h2>{currentStep?.title ?? "Starting analysis"}</h2><p>{currentStep?.output ?? "Waiting for the next output"}</p></div></section>;
   }
   if (state === "error") return <section className="errorState"><XCircle size={23} /><div><h2>Analysis failed</h2><p>{error}</p></div><button className="secondaryButton" onClick={runAnalysis}>Try again</button></section>;
-  if (!analysis) return null;
-
-  const securityIssue = analysis.issues.find((issue) =>
-    issue.type === "risk" && /untrusted|instruction|document/i.test(issue.title + " " + issue.detail),
-  );
-
-  return (
-    <section className="emailResult">
-      {securityIssue && (
-        <div className="securityOutcome">
-          <ShieldAlert size={19} />
-          <div><span>Attack prevented</span><strong>{securityIssue.title}</strong><p>{securityIssue.detail}</p></div>
-          <em>Human Specialist Review</em>
-        </div>
-      )}
-      <header className="emailResultHeader">
-        <span className="emailIcon"><Mail size={19} /></span>
-        <div><span>Automated output</span><h2>Email drafted for {demoCase.customer.name}</h2></div>
-        <span className="reviewBadge">{draftApproved ? "Waiting for customer" : "Review required"}</span>
-      </header>
-      <div className="emailMeta"><span>To</span><strong>{demoCase.customer.contact}</strong></div>
-      <label className="emailField">Subject<input value={draftSubject} onChange={(event) => setDraftSubject(event.target.value)} disabled={draftApproved || draftIsTyping} /></label>
-      <label className="emailField">Message<textarea className={draftIsTyping ? "emailTyping" : ""} value={draftBody} onChange={(event) => setDraftBody(event.target.value)} disabled={draftApproved || draftIsTyping} rows={9} /></label>
-      <footer className="emailActions">
-        <span><ShieldCheck size={15} />{draftApproved ? "Approved · synthetic send only" : "Human approval required before simulated send"}</span>
-        <button className={draftApproved ? "approvedButton" : "primaryButton"} onClick={approveDraft} disabled={draftApproved || draftIsTyping}>
-          {draftApproved ? <Check size={16} /> : <Mail size={16} />}{draftApproved ? "Sent in demo" : draftIsTyping ? "Writing draft" : "Approve & simulate send"}
-        </button>
-      </footer>
-    </section>
-  );
+  return null;
 }
 
 function SourceIcon({ kind }: { kind: SourceKind }) {
@@ -1279,9 +1286,12 @@ function AgentChat({ demoCase, state, analysis, securityStop, followUpStage }: {
     }
     if (state !== "complete") return "I have only the current claim packet and have not completed the preparation pass yet. Start preparation to let me inspect the evidence and build the case history.";
     if (/human|decision|need|next/.test(lower)) return "Coverage, compensation, deductible, repair authorization, and the final claim outcome remain human decisions. I can prepare evidence and communications, but I cannot make those decisions.";
-    if (followUpStage === "none") return (analysis?.caseSummary ? analysis.caseSummary + " " : "") + "I found missing evidence and prepared a transparent customer request. Nothing has been sent; the draft is waiting for handler approval.";
-    if (followUpStage === "waiting_customer") return "The preparation email was approved and is shown as sent in this synthetic demo. I am waiting for the customer's missing photo and updated estimate.";
-    if (followUpStage === "customer_replied" || followUpStage === "waiting_estimate") return "The customer supplied the missing photo, which I associated with the claim. I replied transparently and am now waiting for the revised repair estimate.";
+    if (followUpStage === "none" || followUpStage === "drafting_request") return (analysis?.caseSummary ? analysis.caseSummary + " " : "") + "I found missing evidence and am preparing a transparent customer request. Nothing has been sent.";
+    if (followUpStage === "draft_ready") return "The customer request is drafted and editable in the communication log. It is waiting for explicit handler approval before the synthetic send.";
+    if (["request_sent", "customer_typing"].includes(followUpStage)) return "The handler-approved request is shown as sent in this synthetic demo. I am waiting for the customer's reply; no real email was sent.";
+    if (["customer_replied", "agent_replying"].includes(followUpStage)) return "The customer supplied the missing photo. I am associating it with the claim and preparing a transparent acknowledgement.";
+    if (followUpStage === "paused") return "The missing photo is processed and acknowledged. The file is waiting for the revised repair estimate; use New email incoming when you are ready to continue the demo.";
+    if (["estimate_incoming", "processing_estimate"].includes(followUpStage)) return "The revised estimate has arrived. I am checking the identifier, drafting the final acknowledgement, and preparing the handler handoff.";
     return (analysis?.caseSummary ? analysis.caseSummary + " " : "") + "I collected the missing photo and revised estimate, summarized the exchange, and marked the file ready for handler review. No claim decision was made.";
   };
 
