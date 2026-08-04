@@ -250,8 +250,10 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator(".chat-agent").last()).toContainText("waiting for explicit handler approval");
     await page.getByRole("button", { name: "Audit log" }).click();
     await expect(page.getByLabel("Subject")).toHaveValue(
-      "Your mobile phone claim",
+      "Information needed to prepare your mobile phone claim",
     );
+    await expect(page.getByLabel("Message")).toHaveValue(/I’m If’s digital claims assistant/);
+    await expect(page.getByLabel("Message")).toHaveValue(/I do not make decisions about your claim/);
     await page.locator('[data-tour="source-damage"]').click();
     await expect(page.locator(".extractionLabel")).toHaveText("Agent observations");
     await expect(page.locator(".sourceText")).toContainText("Rule: Front and rear views supplied: Not confirmed");
@@ -271,20 +273,30 @@ test.describe("Claims Copilot demo", () => {
     await page.getByRole("button", { name: "Approve & simulate send" }).click();
     await expect(page.getByText("The handler approved the preparation email")).toBeVisible();
     await expect(page.locator(".writingIndicator")).toContainText("Customer is writing");
-    await expect(page.getByText(/Oh, my bad — I see now that it never uploaded/)).toBeVisible();
-    await expect(page.getByText(/Thanks, Lina — I have received the photo/)).toBeVisible();
-    await expect(page.getByText("Explore the claim before the final email arrives")).toBeVisible({ timeout: 6_000 });
+    await expect(page.locator(".communicationEntry").filter({ hasText: "Oh, my bad — I see now that it never uploaded" })).toBeVisible();
+    await expect(page.locator(".communicationEntry").filter({ hasText: "Thanks, Lina — I’ve received the photo" })).toBeVisible();
+    await expect(page.getByText("Explore the claim before the final email arrives")).toBeVisible({ timeout: 14_000 });
 
     const firstExchange = await page.locator(".communicationEntry header strong").allTextContents();
     expect(firstExchange.slice(0, 3)).toEqual([
       "Photo received and processed",
       "Missing photo attached",
-      "Your mobile phone claim",
+      "Information needed to prepare your mobile phone claim",
     ]);
 
+    await page.getByRole("button", { name: /Missing photo attached/ }).click();
+    const expandedPhotoMessage = page.getByRole("dialog");
+    await expect(expandedPhotoMessage).toContainText("Oh, my bad — I see now that it never uploaded");
+    await expect(expandedPhotoMessage).toContainText("rear-device-photo.jpg");
+    await expandedPhotoMessage.getByRole("button", { name: "Close message" }).click();
+
     await page.getByRole("button", { name: /New email incoming/ }).click();
-    await expect(page.getByText(/They came back to me — here is the updated estimate/)).toBeVisible();
-    await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 5_000 });
+    const incomingEstimate = page.getByRole("dialog");
+    await expect(incomingEstimate.getByRole("heading", { name: "Updated estimate attached" })).toBeVisible();
+    await expect(incomingEstimate).toContainText("They came back to me — here is the updated estimate");
+    await expect(page.getByRole("button", { name: /Updated Repair Estimate.pdf/ })).toBeVisible();
+    await expect(page.getByText("Revised repair estimate with matching device identifier")).toBeVisible();
+    await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 8_000 });
     await expect(page.getByText(/Your handler now has the prepared information needed/)).toBeVisible();
     const completedExchange = await page.locator(".communicationEntry header strong").allTextContents();
     expect(completedExchange.slice(0, 3)).toEqual([
@@ -401,7 +413,7 @@ test.describe("Claims Copilot demo", () => {
 
     await openDemo(page);
     await page.getByRole("button", { name: "Start preparation" }).first().click();
-    await expect(page.getByRole("heading", { name: "Email drafted for Lina Berg" })).toBeVisible({
+    await expect(page.getByText("Customer request ready")).toBeVisible({
       timeout: 150_000,
     });
     await expect(page.getByText("Draft the customer email")).toBeVisible();

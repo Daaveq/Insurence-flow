@@ -54,6 +54,47 @@ type SourceFile = {
   observationStatus?: "pending" | "generated";
 };
 
+const linaPreparationEmailSubject = "Information needed to prepare your mobile phone claim";
+const linaPreparationEmailBody = `Hi Lina,
+
+I’m If’s digital claims assistant. While your claim is waiting to be assigned to a handler, I’m helping prepare the file by collecting the information that is still missing. I do not make decisions about your claim.
+
+Could you please reply with:
+• a clear photo of the back of the phone;
+• purchase evidence showing the serial number or IMEI; and
+• an updated repair estimate showing the same identifier.
+
+Once received, I’ll add the information to the file for your handler to review.
+
+Kind regards,
+If digital claims assistant`;
+
+const updatedRepairEstimateSource: SourceFile = {
+  id: "updated-repair-estimate",
+  name: "Updated Repair Estimate.pdf",
+  group: "customer",
+  kind: "document",
+  purpose: "Revised repair estimate with matching device identifier",
+  destination: "Customer follow-up → handler handoff",
+  content: [
+    "CITY MOBILE REPAIR AB",
+    "Updated repair estimate",
+    "",
+    "Customer: Lina Berg",
+    "Device: Apple iPhone 15, 128 GB",
+    "IMEI: 35 874312 904216 7",
+    "Estimate date: 2026-08-05",
+    "",
+    "Work:",
+    "- Front display assembly replacement",
+    "- Function test",
+    "",
+    "Total including VAT: SEK 2,490",
+    "",
+    "Customer-supplied synthetic demo document. This is not a repair authorization, settlement, or coverage decision.",
+  ].join("\n"),
+};
+
 const idleTrace: TraceEvent[] = [{
   id: "idle",
   timestamp: "Ready",
@@ -604,11 +645,14 @@ export default function Home() {
           }
           if (event.type === "result") {
             const result = event.payload as AnalysisResult;
+            const customerDraft = selectedCaseId === "standard"
+              ? { subject: linaPreparationEmailSubject, body: linaPreparationEmailBody }
+              : result.customerDraft;
             setAnalysis(result);
-            setDraftSubject(result.customerDraft.subject);
+            setDraftSubject(customerDraft.subject);
             setDraftIsTyping(true);
             setFollowUpStage("drafting_request");
-            void revealText(result.customerDraft.body, setDraftBody, controller.signal)
+            void revealText(customerDraft.body, setDraftBody, controller.signal)
               .finally(() => {
                 if (version === requestVersion.current) setDraftIsTyping(false);
               });
@@ -652,6 +696,11 @@ export default function Home() {
 
   const receiveUpdatedEstimate = () => {
     if (followUpStage !== "paused") return;
+    setSources((files) => files.some((source) => source.id === updatedRepairEstimateSource.id)
+      ? files
+      : [...files, updatedRepairEstimateSource]);
+    setSelectedSourceId(updatedRepairEstimateSource.id);
+    setWorkingSourceIds([]);
     setFollowUpStage("estimate_incoming");
     setTrace((events) => [...events, {
       id: crypto.randomUUID(),
@@ -677,17 +726,21 @@ export default function Home() {
     if (followUpStage === "drafting_request" && draftIsTyping) return;
     const transitions: Partial<Record<FollowUpStage, { next: FollowUpStage; delay: number }>> = {
       drafting_request: { next: "draft_ready", delay: 700 },
-      request_sent: { next: "customer_typing", delay: 650 },
-      customer_typing: { next: "customer_replied", delay: 1400 },
-      customer_replied: { next: "agent_replying", delay: 700 },
-      agent_replying: { next: "paused", delay: 1400 },
-      estimate_incoming: { next: "processing_estimate", delay: 650 },
-      processing_estimate: { next: "ready", delay: 1600 },
+      request_sent: { next: "customer_typing", delay: 2400 },
+      customer_typing: { next: "customer_replied", delay: 2500 },
+      customer_replied: { next: "agent_replying", delay: 2600 },
+      agent_replying: { next: "paused", delay: 2500 },
+      estimate_incoming: { next: "processing_estimate", delay: 2600 },
+      processing_estimate: { next: "ready", delay: 2500 },
     };
     const transition = transitions[followUpStage];
     if (!transition) return;
     const timeout = window.setTimeout(() => {
       setFollowUpStage(transition.next);
+      if (transition.next === "processing_estimate") {
+        setSelectedSourceId(updatedRepairEstimateSource.id);
+        setWorkingSourceIds([updatedRepairEstimateSource.id]);
+      }
       if (transition.next === "customer_replied") {
         setTrace((events) => [...events, {
           id: crypto.randomUUID(), timestamp: currentTime(), title: "Customer reply received",
@@ -703,6 +756,7 @@ export default function Home() {
         }]);
       }
       if (transition.next === "ready") {
+        setWorkingSourceIds([]);
         setTrace((events) => [...events, {
           id: crypto.randomUUID(), timestamp: currentTime(), title: "Updated estimate received and processed",
           detail: "The device identifier is now present. The preparation file is complete and ready for a handler to make the remaining decisions.",
@@ -961,29 +1015,51 @@ function CommunicationLog({
   securityStop: SecurityStop | null;
 }) {
   type MessageTone = "ai" | "human" | "system" | "security";
-  type CommunicationMessage = { actor: string; direction: string; time: string; title: string; body: string; tone: MessageTone; attachment?: string };
+  type CommunicationMessage = { id: string; actor: string; direction: string; time: string; title: string; body: string; tone: MessageTone; attachment?: string };
+  const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
   const order: FollowUpStage[] = ["none", "drafting_request", "draft_ready", "request_sent", "customer_typing", "customer_replied", "agent_replying", "paused", "estimate_incoming", "processing_estimate", "ready"];
   const reached = (target: FollowUpStage) => order.indexOf(stage) >= order.indexOf(target);
   const chronological: CommunicationMessage[] = [];
   if (reached("request_sent")) chronological.push(
-    { actor: "If digital claims assistant", direction: "Outgoing", time: "09:45", title: draftSubject || "Missing information requested", body: draftBody || "Requested the missing rear photo and matching device identifier.", tone: "ai" },
+    { id: "preparation-request", actor: "If digital claims assistant", direction: "Outgoing", time: "09:45", title: draftSubject || "Missing information requested", body: draftBody || linaPreparationEmailBody, tone: "ai" },
   );
   if (reached("customer_replied")) chronological.push(
-    { actor: demoCase.customer.name, direction: "Incoming", time: "10:12", title: "Missing photo attached", body: "Oh, my bad — I see now that it never uploaded. Here it is. Regarding the repair, I asked them to update the estimate. It should be coming soon!", tone: "human", attachment: "rear-device-photo.jpg" },
+    { id: "customer-photo", actor: demoCase.customer.name, direction: "Incoming", time: "10:12", title: "Missing photo attached", body: "Oh, my bad — I see now that it never uploaded. Here it is. Regarding the repair, I asked them to update the estimate. It should be coming soon!", tone: "human", attachment: "rear-device-photo.jpg" },
   );
   if (reached("paused")) chronological.push(
-    { actor: "If digital claims assistant", direction: "Outgoing", time: "10:13", title: "Photo received and processed", body: "Thanks, Lina — I have received the photo and added it to your claim. I am now only waiting for the updated repair estimate. A handler will review the prepared file and make any claim decisions.", tone: "ai" },
+    { id: "photo-acknowledgement", actor: "If digital claims assistant", direction: "Outgoing", time: "10:13", title: "Photo received and processed", body: "Thanks, Lina — I’ve received the photo and added it to your claim file. I’m now waiting for the updated repair estimate. I’m only collecting and organizing information; your handler will review the file and make any decisions about your claim.", tone: "ai" },
   );
   if (reached("estimate_incoming")) chronological.push(
-    { actor: demoCase.customer.name, direction: "Incoming", time: "10:16", title: "Updated estimate attached", body: "They came back to me — here is the updated estimate.", tone: "human", attachment: "updated-repair-estimate.pdf" },
+    { id: "customer-estimate", actor: demoCase.customer.name, direction: "Incoming", time: "10:16", title: "Updated estimate attached", body: "They came back to me — here is the updated estimate.", tone: "human", attachment: "Updated Repair Estimate.pdf" },
   );
   if (stage === "ready") chronological.push(
-    { actor: "If digital claims assistant", direction: "Outgoing", time: "10:17", title: "Preparation completed", body: "Perfect, thank you! I have received and processed the updated estimate. That is everything I can collect for now. Your handler now has the prepared information needed to start reviewing the case.", tone: "ai" },
-    { actor: "Case agent", direction: "Internal", time: "10:17", title: "Case ready for handler review", body: "Evidence and communications prepared. No coverage, compensation, deductible, repair authorization, or claim outcome decision was made.", tone: "system" },
+    { id: "preparation-complete", actor: "If digital claims assistant", direction: "Outgoing", time: "10:17", title: "Preparation completed", body: "Super, thank you! I’ve received and processed the updated estimate. That is everything I can collect for now. Your handler will have the prepared information needed to begin reviewing the claim. I have not made any decision about your claim.", tone: "ai" },
+    { id: "handler-ready", actor: "Case agent", direction: "Internal", time: "10:17", title: "Case ready for handler review", body: "Evidence and communications prepared. No coverage, compensation, deductible, repair authorization, or claim outcome decision was made.", tone: "system" },
   );
-  const messages = demoCase === demoCases.injection && securityStop ? [
-    { actor: "Safety control", direction: "Internal", time: "08:22", title: "All automated communication stopped", body: "An untrusted instruction was detected in the repair estimate. No customer or vendor message was created or sent.", tone: "security" as const },
+  const messages: CommunicationMessage[] = demoCase === demoCases.injection && securityStop ? [
+    { id: "security-stop", actor: "Safety control", direction: "Internal", time: "08:22", title: "All automated communication stopped", body: "An untrusted instruction was detected in the repair estimate. No customer or vendor message was created or sent.", tone: "security" },
   ] : [...chronological].reverse();
+  const expandedMessage = messages.find((message) => message.id === expandedMessageId) ?? null;
+
+  useEffect(() => {
+    const arrivingMessageByStage: Partial<Record<FollowUpStage, string>> = {
+      request_sent: "preparation-request",
+      customer_replied: "customer-photo",
+      paused: "photo-acknowledgement",
+      estimate_incoming: "customer-estimate",
+      ready: "preparation-complete",
+    };
+    const arrivingMessageId = arrivingMessageByStage[stage];
+    if (!arrivingMessageId) return;
+    const openFrame = window.requestAnimationFrame(() => setExpandedMessageId(arrivingMessageId));
+    const timeout = window.setTimeout(() => {
+      setExpandedMessageId((current) => current === arrivingMessageId ? null : current);
+    }, 2300);
+    return () => {
+      window.cancelAnimationFrame(openFrame);
+      window.clearTimeout(timeout);
+    };
+  }, [stage]);
 
   const typing = stage === "drafting_request"
     ? { actor: "AI assistant", label: "Drafting the missing-information email" }
@@ -1023,17 +1099,49 @@ function CommunicationLog({
         <div className="emptyCommunications"><Mail size={18} /><p>The case agent has not contacted anyone. Communications will appear here with a clear AI or human identity.</p></div>
       ) : <div className="communicationEntries">
         {messages.map((message, index) => (
-          <article className={"communicationEntry communication-" + message.tone + (index === 0 ? " communicationLatest" : "")} key={message.time + message.title}>
+          <article
+            aria-haspopup="dialog"
+            className={"communicationEntry communication-" + message.tone + (index === 0 ? " communicationLatest" : "")}
+            key={message.id}
+            onClick={() => setExpandedMessageId(message.id)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                setExpandedMessageId(message.id);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+          >
             <span className="actorIcon">{message.tone === "ai" ? <Bot size={14} /> : message.tone === "human" ? <UserRound size={14} /> : message.tone === "security" ? <ShieldAlert size={14} /> : <Mail size={14} />}</span>
             <div>
               <header><strong>{message.title}</strong><time>{message.time}</time></header>
-              <div className="communicationMeta"><span>{message.actor}</span><i>{message.direction}</i>{message.tone === "ai" && <em>AI assistant</em>}{message.tone === "human" && <em className="humanBadge">Customer</em>}</div>
+              <div className="communicationMeta"><span>{message.actor}</span><i>{message.direction}</i>{message.tone === "ai" && <em>AI assistant</em>}{message.tone === "human" && <em className="humanBadge">Customer</em>}<small>Click to read</small></div>
               <p>{message.body}</p>
-              {message.attachment && <button className="messageAttachment"><Paperclip size={11} />{message.attachment}</button>}
+              {message.attachment && <span className="messageAttachment"><Paperclip size={11} />{message.attachment}</span>}
             </div>
           </article>
         ))}
       </div>}
+      {expandedMessage && (
+        <div className="messageOverlay" onClick={() => setExpandedMessageId(null)}>
+          <article aria-labelledby={"expanded-message-" + expandedMessage.id} aria-modal="true" className={"expandedMessage communication-" + expandedMessage.tone} onClick={(event) => event.stopPropagation()} role="dialog">
+            <header>
+              <span className="expandedActorIcon">{expandedMessage.tone === "ai" ? <Bot size={18} /> : expandedMessage.tone === "human" ? <UserRound size={18} /> : expandedMessage.tone === "security" ? <ShieldAlert size={18} /> : <Mail size={18} />}</span>
+              <div><small>{expandedMessage.actor} · {expandedMessage.direction}</small><strong>{expandedMessage.tone === "ai" ? "AI assistant" : expandedMessage.tone === "human" ? "Customer" : "Case activity"}</strong></div>
+              <time>{expandedMessage.time}</time>
+              <button aria-label="Close message" onClick={() => setExpandedMessageId(null)}><XCircle size={20} /></button>
+            </header>
+            <div className="expandedMessageBody">
+              <span>Subject</span>
+              <h2 id={"expanded-message-" + expandedMessage.id}>{expandedMessage.title}</h2>
+              <p>{expandedMessage.body}</p>
+              {expandedMessage.attachment && <span className="messageAttachment expandedAttachment"><Paperclip size={14} />{expandedMessage.attachment}</span>}
+            </div>
+            <footer><ShieldCheck size={14} />Synthetic demo exchange · no real email is sent</footer>
+          </article>
+        </div>
+      )}
       <footer><ShieldCheck size={13} />Synthetic demo exchange · no real email is sent</footer>
     </section>
   );
