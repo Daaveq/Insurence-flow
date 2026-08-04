@@ -685,16 +685,16 @@ button.claimRow:hover { background: #fafbfa; }
 .logDraftCard > footer > span { align-items: center; color: var(--muted); display: flex; font-size: 7px; gap: 5px; }
 .logDraftCard > footer > span svg { color: var(--green); }
 .logDraftCard .primaryButton { flex: 0 0 auto; font-size: 8px; padding: 7px 9px; }
-.writingIndicator { align-items: flex-end; background: #eef3f0; border-bottom: 1px solid var(--line); display: flex; gap: 8px; padding: 12px 16px; }
-.writingIndicator.writing-human { flex-direction: row-reverse; }
-.writingIndicator.writing-human > div { flex: 0 1 auto; text-align: right; }
+.writingIndicator { align-items: flex-end; background: #eef3f0; border-bottom: 1px solid var(--line); display: flex; flex-direction: row-reverse; gap: 8px; padding: 12px 16px; }
+.writingIndicator > div { flex: 0 1 auto; text-align: right; }
+.writingIndicator.writing-human { flex-direction: row; }
+.writingIndicator.writing-human > div { text-align: left; }
 .writingAvatar { align-items: center; background: var(--green-soft); border-radius: 50%; color: var(--green); display: flex; flex: 0 0 auto; height: 27px; justify-content: center; width: 27px; }
 .writing-human .writingAvatar { background: #dfe8f8; color: #4d6084; }
-.writingIndicator > div { flex: 0 1 auto; }
 .writingIndicator small, .writingIndicator strong { display: block; }
 .writingIndicator small { color: var(--muted); font-size: 7px; }
-.writingIndicator strong { background: white; border: 1px solid #cdd7d1; border-radius: 11px 11px 11px 3px; font-size: 8px; margin-top: 3px; padding: 7px 9px; }
-.writing-human strong { background: #e8eef9; border-color: #c4cfe2; border-radius: 11px 11px 3px 11px; }
+.writingIndicator strong { background: white; border: 1px solid #cdd7d1; border-radius: 11px 11px 3px 11px; font-size: 8px; margin-top: 3px; padding: 7px 9px; }
+.writing-human strong { background: #e8eef9; border-color: #c4cfe2; border-radius: 11px 11px 11px 3px; }
 .writingIndicator > i { align-items: center; background: white; border: 1px solid #bdd1c4; border-radius: 999px; display: flex; gap: 3px; padding: 7px 9px; }
 .writingIndicator b { animation: writingDot 1.05s ease-in-out infinite; background: var(--green); border-radius: 50%; height: 5px; width: 5px; }
 .writing-human b { background: #4d6084; }
@@ -715,11 +715,11 @@ button.claimRow:hover { background: #fafbfa; }
 .emptyCommunications { align-items: center; color: var(--muted); display: flex; gap: 9px; padding: 15px; }
 .emptyCommunications p { font-size: 8px; line-height: 1.45; }
 .communicationEntries { background: #eef3f0; display: flex; flex-direction: column; gap: 10px; padding: 16px; }
-.communicationEntry { align-items: flex-end; align-self: flex-start; display: flex; gap: 8px; max-width: 88%; padding: 0; width: auto; }
-.communicationEntry.communication-human { align-self: flex-end; flex-direction: row-reverse; }
+.communicationEntry { align-items: flex-end; align-self: flex-end; display: flex; flex-direction: row-reverse; gap: 8px; max-width: 88%; padding: 0; transition: max-width .22s ease, width .22s ease, transform .16s ease; width: auto; }
+.communicationEntry.communication-human { align-self: flex-start; flex-direction: row; }
 .communicationEntry.communication-system, .communicationEntry.communication-security { align-self: center; max-width: 94%; width: 94%; }
-.communicationEntry > div { background: #e4f3ea; border: 1px solid #b9d8c6; border-radius: 14px 14px 14px 4px; box-shadow: 0 3px 10px rgb(31 66 47 / 7%); min-width: 180px; padding: 10px 12px; }
-.communication-human > div { background: #e8eef9; border-color: #c5d0e3; border-radius: 14px 14px 4px 14px; }
+.communicationEntry > div { background: #e4f3ea; border: 1px solid #b9d8c6; border-radius: 14px 14px 4px 14px; box-shadow: 0 3px 10px rgb(31 66 47 / 7%); min-width: 180px; padding: 10px 12px; }
+.communication-human > div { background: #e8eef9; border-color: #c5d0e3; border-radius: 14px 14px 14px 4px; }
 .communication-system > div { background: white; border-color: #ccd3cf; border-radius: 8px; }
 .communication-security > div { background: #fff0ee; border-color: #d9aaa3; border-radius: 8px; }
 .communicationLatest > div { box-shadow: 0 0 0 3px rgb(75 151 111 / 12%), 0 6px 18px rgb(31 66 47 / 10%); }
@@ -737,36 +737,24 @@ button.claimRow:hover { background: #fafbfa; }
 .communicationMeta em.humanBadge { background: rgb(255 255 255 / 66%); color: #4d6084; }
 .communicationEntry p { color: #33413a; font-size: 8px; line-height: 1.55; margin-top: 7px; white-space: pre-wrap; }
 .communicationLog > footer { align-items: center; background: var(--soft); border-top: 1px solid var(--line); color: var(--muted); display: flex; font-size: 7px; gap: 5px; padding: 7px 12px; }
-.communicationEntry[role="button"] { cursor: pointer; outline: none; transition: transform .16s ease; }
+.communicationEntry[role="button"] { cursor: pointer; outline: none; }
 .communicationEntry[role="button"]:hover, .communicationEntry[role="button"]:focus-visible { transform: translateY(-1px); }
 .communicationEntry[role="button"]:focus-visible > div { box-shadow: 0 0 0 3px rgb(75 151 111 / 20%); }
 .communicationMeta small { color: #77817c; font-size: 7px; margin-left: auto; }
 
-.messageOverlay { align-items: center; background: rgb(20 31 25 / 52%); display: flex; inset: 58px 50% 0 0; justify-content: center; padding: 24px; position: fixed; z-index: 45; }
-.expandedMessage { background: white; border: 1px solid #acc8b8; border-radius: 8px; box-shadow: 0 22px 70px rgb(9 23 15 / 32%); max-height: calc(100vh - 110px); overflow: auto; width: min(620px, 100%); }
-.expandedMessage > header { align-items: center; border-bottom: 1px solid var(--line); display: flex; gap: 10px; padding: 15px 17px; }
-.expandedActorIcon { align-items: center; background: var(--green-soft); border-radius: 50%; color: var(--green); display: flex; flex: 0 0 auto; height: 36px; justify-content: center; width: 36px; }
-.expandedMessage.communication-human .expandedActorIcon { background: #eef1f7; color: #4d6084; }
-.expandedMessage.communication-security .expandedActorIcon { background: #fff0ee; color: var(--danger); }
-.expandedMessage > header div { flex: 1; }
-.expandedMessage > header small, .expandedMessage > header strong { display: block; }
-.expandedMessage > header small { color: var(--muted); font-size: 8px; }
-.expandedMessage > header strong { color: var(--green); font-size: 9px; margin-top: 2px; text-transform: uppercase; }
-.expandedMessage > header time { color: var(--muted); font-family: var(--font-geist-mono), monospace; font-size: 8px; }
-.expandedMessage > header button { align-items: center; background: transparent; border: 0; color: #69736e; cursor: pointer; display: flex; justify-content: center; padding: 2px; }
-.expandedMessageBody { padding: 22px 24px 26px; }
-.expandedMessageBody > span:first-child { color: var(--green); display: block; font-size: 8px; font-weight: 800; text-transform: uppercase; }
-.expandedMessageBody h2 { font-size: 19px; line-height: 1.25; margin-top: 5px; }
-.expandedMessageBody p { color: #37423d; font-size: 12px; line-height: 1.7; margin-top: 18px; white-space: pre-wrap; }
-.expandedAttachment { display: inline-flex; font-size: 9px; margin-top: 18px; padding: 9px 11px; }
-.expandedMessage > footer { align-items: center; background: var(--soft); border-top: 1px solid var(--line); color: var(--muted); display: flex; font-size: 8px; gap: 6px; padding: 10px 17px; }
+.communicationEntry.communicationExpanded { max-width: 100%; width: 100%; }
+.communicationExpanded > div { flex: 1; padding: 15px 17px; }
+.communicationExpanded header strong { font-size: 12px; }
+.communicationExpanded p { font-size: 11px; line-height: 1.65; margin-top: 10px; }
+.communicationExpanded .communicationMeta span, .communicationExpanded .communicationMeta i, .communicationExpanded .communicationMeta em, .communicationExpanded .communicationMeta small { font-size: 8px; }
+.communicationExpanded .messageAttachment { font-size: 9px; padding: 9px 10px; }
 
-.agentChatLauncher { align-items: center; background: var(--brand); border: 1px solid #e56779; border-radius: 999px; bottom: 14px; box-shadow: 0 8px 26px rgb(117 25 43 / 24%); color: white; cursor: pointer; display: flex; font-size: 8px; font-weight: 760; gap: 6px; left: 14px; padding: 10px 13px; position: absolute; z-index: 18; }
-.agentChatLauncher:hover, .agentChatLauncher.launcherActive { background: #d12a42; }
-.handlerChatOverlay { align-items: flex-end; background: rgb(29 38 33 / 28%); display: flex; inset: 43px 0 0; padding: 14px 14px 58px; position: absolute; z-index: 16; }
-.handlerChatCard { background: var(--dark); border: 1px solid #58675f; border-radius: 9px; box-shadow: 0 20px 60px rgb(15 24 19 / 32%); display: flex; height: min(560px, calc(100% - 14px)); max-width: 460px; overflow: hidden; position: relative; width: calc(100% - 14px); }
+.agentChatLauncher { align-items: center; background: #315b47; border: 1px solid #315b47; border-radius: 999px; bottom: 14px; box-shadow: 0 8px 24px rgb(49 91 71 / 22%); color: white; cursor: pointer; display: flex; font-size: 8px; font-weight: 760; gap: 6px; left: 14px; padding: 10px 13px; position: absolute; z-index: 18; }
+.agentChatLauncher:hover, .agentChatLauncher.launcherActive { background: #244838; }
+.handlerChatOverlay { align-items: flex-end; background: rgb(41 53 47 / 14%); display: flex; inset: 43px 0 0; padding: 14px 14px 58px; position: absolute; z-index: 16; }
+.handlerChatCard { background: #f8f7f3; border: 1px solid #c9d0cc; border-radius: 9px; box-shadow: 0 16px 42px rgb(34 47 40 / 20%); display: flex; height: min(430px, calc(100% - 14px)); max-width: 360px; overflow: hidden; position: relative; width: calc(100% - 28px); }
 .handlerChatCard .agentChat { width: 100%; }
-.handlerChatClose { align-items: center; background: transparent; border: 0; color: #aab8b1; cursor: pointer; display: flex; padding: 2px; position: absolute; right: 12px; top: 12px; z-index: 2; }
+.handlerChatClose { align-items: center; background: transparent; border: 0; color: #6c7872; cursor: pointer; display: flex; padding: 2px; position: absolute; right: 12px; top: 12px; z-index: 2; }
 .handlerChatCard .agentChat > header { padding-right: 46px; }
 
 .agentPaneTabs { align-items: center; background: var(--dark-2); border-bottom: 1px solid var(--dark-line); display: flex; flex: 0 0 auto; min-height: 42px; padding: 5px 9px; }
@@ -798,6 +786,24 @@ button.claimRow:hover { background: #fafbfa; }
 .agentChat > form { align-items: center; border-top: 1px solid var(--dark-line); display: flex; gap: 6px; padding: 9px 12px; }
 .agentChat > form input { background: #0d1210; border: 1px solid #45534d; border-radius: 4px; color: white; flex: 1; font-size: 8px; padding: 8px; }
 .agentChat > form button { align-items: center; background: var(--brand); border: 0; border-radius: 4px; color: white; cursor: pointer; display: flex; height: 31px; justify-content: center; width: 31px; }
+
+.handlerChatCard .agentChat { background: #f8f7f3; color: var(--ink); }
+.handlerChatCard .agentChat > header { background: white; border-color: #d9dedb; }
+.handlerChatCard .agentChat > header strong { color: var(--ink); }
+.handlerChatCard .agentChat > header small { color: var(--muted); }
+.handlerChatCard .agentChat > header svg { color: #47735b; }
+.handlerChatCard .agentChat > header i { background: #e7f2eb; color: #315b47; }
+.handlerChatCard .chatMessages { background: #f5f4f0; }
+.handlerChatCard .chatWelcome { color: var(--muted); }
+.handlerChatCard .chatWelcome strong { color: var(--ink); }
+.handlerChatCard .chatMessage > span { background: #e1eee6; color: #315b47; }
+.handlerChatCard .chatMessage p { background: white; border-color: #d6ddd9; color: #3d4742; }
+.handlerChatCard .chat-handler > span { background: #f2e6e8; color: #9a5260; }
+.handlerChatCard .chat-handler p { background: #f9eff1; border-color: #ead2d7; }
+.handlerChatCard .chatSuggestions button { background: white; border-color: #ccd5d0; color: #52615a; }
+.handlerChatCard .agentChat > form { background: white; border-color: #d9dedb; }
+.handlerChatCard .agentChat > form input { background: #f8f8f6; border-color: #cbd3cf; color: var(--ink); }
+.handlerChatCard .agentChat > form button { background: #315b47; }
 
 @media (prefers-reduced-motion: reduce) {
   .sourceGroup em > span, .typewriterCursor { animation: none; }
@@ -860,10 +866,7 @@ button.claimRow:hover { background: #fafbfa; }
   .logDraftCard .primaryButton { justify-content: center; width: 100%; }
   .communicationLog > header { align-items: flex-start; gap: 5px; }
   .handlerChatOverlay { inset: 0; padding: 12px 12px 58px; position: fixed; z-index: 46; }
-  .handlerChatCard { height: calc(100vh - 82px); max-width: none; width: 100%; }
-  .messageOverlay { inset: 0; padding: 14px; }
-  .expandedMessage { max-height: calc(100vh - 28px); }
-  .expandedMessageBody { padding: 18px; }
+  .handlerChatCard { height: min(430px, calc(100vh - 82px)); max-width: 360px; width: 100%; }
   .agentPaneTabs > span { display: none; }
   .caseFacts { grid-template-columns: 1fr; }
   .caseFacts > div + div { border-left: 0; border-top: 1px solid var(--line); margin-top: 7px; padding-left: 0; padding-top: 7px; }

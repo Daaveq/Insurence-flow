@@ -725,12 +725,12 @@ export default function Home() {
     if (followUpStage === "drafting_request" && draftIsTyping) return;
     const transitions: Partial<Record<FollowUpStage, { next: FollowUpStage; delay: number }>> = {
       drafting_request: { next: "draft_ready", delay: 700 },
-      request_sent: { next: "customer_typing", delay: 2400 },
-      customer_typing: { next: "customer_replied", delay: 2500 },
-      customer_replied: { next: "agent_replying", delay: 2600 },
-      agent_replying: { next: "paused", delay: 2500 },
-      estimate_incoming: { next: "processing_estimate", delay: 2600 },
-      processing_estimate: { next: "ready", delay: 2500 },
+      request_sent: { next: "customer_typing", delay: 2800 },
+      customer_typing: { next: "customer_replied", delay: 5000 },
+      customer_replied: { next: "agent_replying", delay: 3000 },
+      agent_replying: { next: "paused", delay: 4000 },
+      estimate_incoming: { next: "processing_estimate", delay: 3000 },
+      processing_estimate: { next: "ready", delay: 4000 },
     };
     const transition = transitions[followUpStage];
     if (!transition) return;
@@ -1052,8 +1052,6 @@ function CommunicationLog({
   const messages: CommunicationMessage[] = demoCase === demoCases.injection && securityStop ? [
     { id: "security-stop", actor: "Safety control", direction: "Internal", time: "08:22", title: "All automated communication stopped", body: "An untrusted instruction was detected in the repair estimate. No customer or vendor message was created or sent.", tone: "security" },
   ] : [...chronological].reverse();
-  const expandedMessage = messages.find((message) => message.id === expandedMessageId) ?? null;
-
   useEffect(() => {
     const arrivingMessageByStage: Partial<Record<FollowUpStage, string>> = {
       request_sent: "preparation-request",
@@ -1067,7 +1065,7 @@ function CommunicationLog({
     const openFrame = window.requestAnimationFrame(() => setExpandedMessageId(arrivingMessageId));
     const timeout = window.setTimeout(() => {
       setExpandedMessageId((current) => current === arrivingMessageId ? null : current);
-    }, 2300);
+    }, 3000);
     return () => {
       window.cancelAnimationFrame(openFrame);
       window.clearTimeout(timeout);
@@ -1113,14 +1111,14 @@ function CommunicationLog({
       ) : <div className="communicationEntries">
         {messages.map((message, index) => (
           <article
-            aria-haspopup="dialog"
-            className={"communicationEntry communication-" + message.tone + (index === 0 ? " communicationLatest" : "")}
+            aria-expanded={expandedMessageId === message.id}
+            className={"communicationEntry communication-" + message.tone + (index === 0 ? " communicationLatest" : "") + (expandedMessageId === message.id ? " communicationExpanded" : "")}
             key={message.id}
-            onClick={() => setExpandedMessageId(message.id)}
+            onClick={() => setExpandedMessageId((current) => current === message.id ? null : message.id)}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                setExpandedMessageId(message.id);
+                setExpandedMessageId((current) => current === message.id ? null : message.id);
               }
             }}
             role="button"
@@ -1129,32 +1127,13 @@ function CommunicationLog({
             <span className="actorIcon">{message.tone === "ai" ? <Bot size={14} /> : message.tone === "human" ? <UserRound size={14} /> : message.tone === "security" ? <ShieldAlert size={14} /> : <Mail size={14} />}</span>
             <div>
               <header><strong>{message.title}</strong><time>{message.time}</time></header>
-              <div className="communicationMeta"><span>{message.actor}</span><i>{message.direction}</i>{message.tone === "ai" && <em>AI assistant</em>}{message.tone === "human" && <em className="humanBadge">Customer</em>}<small>Click to read</small></div>
+              <div className="communicationMeta"><span>{message.actor}</span><i>{message.direction}</i>{message.tone === "ai" && <em>AI assistant</em>}{message.tone === "human" && <em className="humanBadge">Customer</em>}<small>{expandedMessageId === message.id ? "Click to collapse" : "Click to expand"}</small></div>
               <p>{message.body}</p>
               {message.attachment && <span className="messageAttachment"><Paperclip size={11} />{message.attachment}</span>}
             </div>
           </article>
         ))}
       </div>}
-      {expandedMessage && (
-        <div className="messageOverlay" onClick={() => setExpandedMessageId(null)}>
-          <article aria-labelledby={"expanded-message-" + expandedMessage.id} aria-modal="true" className={"expandedMessage communication-" + expandedMessage.tone} onClick={(event) => event.stopPropagation()} role="dialog">
-            <header>
-              <span className="expandedActorIcon">{expandedMessage.tone === "ai" ? <Bot size={18} /> : expandedMessage.tone === "human" ? <UserRound size={18} /> : expandedMessage.tone === "security" ? <ShieldAlert size={18} /> : <Mail size={18} />}</span>
-              <div><small>{expandedMessage.actor} · {expandedMessage.direction}</small><strong>{expandedMessage.tone === "ai" ? "AI assistant" : expandedMessage.tone === "human" ? "Customer" : "Case activity"}</strong></div>
-              <time>{expandedMessage.time}</time>
-              <button aria-label="Close message" onClick={() => setExpandedMessageId(null)}><XCircle size={20} /></button>
-            </header>
-            <div className="expandedMessageBody">
-              <span>Subject</span>
-              <h2 id={"expanded-message-" + expandedMessage.id}>{expandedMessage.title}</h2>
-              <p>{expandedMessage.body}</p>
-              {expandedMessage.attachment && <span className="messageAttachment expandedAttachment"><Paperclip size={14} />{expandedMessage.attachment}</span>}
-            </div>
-            <footer><ShieldCheck size={14} />Synthetic demo exchange · no real email is sent</footer>
-          </article>
-        </div>
-      )}
       <footer><ShieldCheck size={13} />Synthetic demo exchange · no real email is sent</footer>
     </section>
   );

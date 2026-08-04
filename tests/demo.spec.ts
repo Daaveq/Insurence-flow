@@ -177,6 +177,7 @@ test.describe("Claims Copilot demo", () => {
   });
 
   test("drafts an email, follows the latest step, and resets", async ({ page }) => {
+    test.setTimeout(60_000);
     let releaseResponse!: () => void;
     const responseGate = new Promise<void>((resolve) => {
       releaseResponse = resolve;
@@ -249,6 +250,9 @@ test.describe("Claims Copilot demo", () => {
     const handlerPane = page.getByRole("region", { name: "Front end handler view" });
     await expect(handlerPane.getByRole("button", { name: "Chat with this case agent" })).toBeVisible();
     await handlerPane.getByRole("button", { name: "Chat with this case agent" }).click();
+    const handlerChatBox = await page.locator(".handlerChatCard").boundingBox();
+    expect(handlerChatBox).not.toBeNull();
+    expect(handlerChatBox!.width).toBeLessThanOrEqual(370);
     await page.getByRole("button", { name: "What happened while I was away?" }).click();
     await expect(page.locator(".chat-agent").last()).toContainText("waiting for explicit handler approval");
     await page.getByRole("button", { name: "Close case agent chat" }).click();
@@ -278,14 +282,14 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator(".writingIndicator")).toContainText("Customer is writing");
     await expect(page.locator(".communicationEntry").filter({ hasText: "Oh, my bad — I see now that it never uploaded" })).toBeVisible();
     await expect(page.locator(".communicationEntry").filter({ hasText: "Thanks, Lina — I’ve received the photo" })).toBeVisible();
-    await expect(page.getByText("Explore the claim before the final email arrives")).toBeVisible({ timeout: 14_000 });
+    await expect(page.getByText("Explore the claim before the final email arrives")).toBeVisible({ timeout: 22_000 });
 
-    const aiBubble = page.locator(".communication-ai").first();
-    const customerBubble = page.locator(".communication-human").first();
+    const aiBubble = page.locator(".communication-ai:not(.communicationExpanded)").last();
+    const customerBubble = page.locator(".communication-human:not(.communicationExpanded)").first();
     const [aiBox, customerBox] = await Promise.all([aiBubble.boundingBox(), customerBubble.boundingBox()]);
     expect(aiBox).not.toBeNull();
     expect(customerBox).not.toBeNull();
-    expect(aiBox!.x).toBeLessThan(customerBox!.x);
+    expect(customerBox!.x).toBeLessThan(aiBox!.x);
 
     const firstExchange = await page.locator(".communicationEntry header strong").allTextContents();
     expect(firstExchange.slice(0, 3)).toEqual([
@@ -294,20 +298,28 @@ test.describe("Claims Copilot demo", () => {
       "Information needed to prepare your mobile phone claim",
     ]);
 
-    await page.getByRole("button", { name: /Missing photo attached/ }).click();
-    const expandedPhotoMessage = page.getByRole("dialog");
+    const expandedPhotoMessage = page.getByRole("button", { name: /Missing photo attached/ });
+    await expandedPhotoMessage.click();
+    await expect(expandedPhotoMessage).toHaveClass(/communicationExpanded/);
     await expect(expandedPhotoMessage).toContainText("Oh, my bad — I see now that it never uploaded");
     await expect(expandedPhotoMessage).toContainText("rear-device-photo.jpg");
-    await expandedPhotoMessage.getByRole("button", { name: "Close message" }).click();
+    const [expandedPhotoBox, communicationEntriesBox] = await Promise.all([
+      expandedPhotoMessage.boundingBox(),
+      page.locator(".communicationEntries").boundingBox(),
+    ]);
+    expect(expandedPhotoBox).not.toBeNull();
+    expect(communicationEntriesBox).not.toBeNull();
+    expect(expandedPhotoBox!.width).toBeGreaterThan(communicationEntriesBox!.width * 0.9);
+    await expandedPhotoMessage.click();
+    await expect(expandedPhotoMessage).not.toHaveClass(/communicationExpanded/);
 
     await page.getByRole("button", { name: /New email incoming/ }).click();
-    const incomingEstimate = page.getByRole("dialog");
-    await expect(incomingEstimate.getByRole("heading", { name: "Updated estimate attached" })).toBeVisible();
+    const incomingEstimate = page.locator(".communicationEntry").filter({ hasText: "Updated estimate attached" }).first();
+    await expect(incomingEstimate).toHaveClass(/communicationExpanded/);
     await expect(incomingEstimate).toContainText("They came back to me — here is the updated estimate");
-    await expect(page.locator('[data-tour="source-updated-repair-estimate"]')).toBeVisible();
-    await expect(page.getByText("Revised repair estimate with matching device identifier")).toBeVisible();
-    await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 8_000 });
-    await expect(page.getByText(/Your handler now has the prepared information needed/)).toBeVisible();
+    await expect(page.locator('[data-tour="source-updated-repair-estimate"]')).toContainText("Revised repair estimate with matching device identifier");
+    await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".communicationEntry").filter({ hasText: "Preparation completed" }).first()).toContainText("Your handler will have the prepared information needed");
     const completedExchange = await page.locator(".communicationEntry header strong").allTextContents();
     expect(completedExchange.slice(0, 3)).toEqual([
       "Case ready for handler review",
