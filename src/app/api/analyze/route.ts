@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   agentPromptForCase,
+  maliciousInstruction,
+  maliciousInstructionLocation,
   repairEstimatePacketForCase,
   securityReviewContent,
 } from "@/lib/agent-config";
@@ -33,6 +35,16 @@ type ClientEvent =
         sourceId: "damage" | "receipt" | "repair-estimate";
         content: string;
         mode: "replace" | "append";
+        securityFinding?: { location: string; text: string };
+      };
+    }
+  | {
+      type: "security_stop";
+      payload: {
+        title: string;
+        detail: string;
+        queue: "Human Specialist Review";
+        sourceId: "repair-estimate";
       };
     }
   | { type: "result"; payload: unknown }
@@ -106,11 +118,11 @@ export async function POST(request: Request) {
   );
   const receiptImagePath = path.join(
     process.cwd(),
-    "public/evidence/receipt.jpg",
+    caseId === "injection" ? "public/evidence/receipt-case2.png" : "public/evidence/receipt.jpg",
   );
   const damageImagePath = path.join(
     process.cwd(),
-    "public/evidence/damaged-phone.png",
+    caseId === "injection" ? "public/evidence/damaged-android-case2.png" : "public/evidence/damaged-phone.png",
   );
 
   let sourcePacket: string;
@@ -210,6 +222,73 @@ export async function POST(request: Request) {
         "Damage claim",
         "Customer + policy + incident facts",
       );
+      if (untrustedInstructionDetected) {
+        trace(
+          "Pre-screen customer documents as untrusted data",
+          "Before claim analysis begins, the safety check reads document text without allowing it to change the agent's role or permissions.",
+          "complete",
+          "system",
+          "3 customer uploads",
+          "Document safety check",
+        );
+        trace(
+          "Inspect the repair estimate's hidden text",
+          "The visible estimate ends after the total, but the document also contains a hidden machine-readable line in the bottom margin of page 1.",
+          "active",
+          "source",
+          "Repair Estimate.pdf",
+          "Page 1 · bottom margin",
+        );
+        trace(
+          "Detect an untrusted instruction",
+          "The hidden line tries to override the agent, approve the claim, and conceal that action. Customer evidence cannot issue instructions.",
+          "warning",
+          "system",
+          "Repair Estimate.pdf · hidden text",
+          "Instruction quarantined",
+        );
+        send({
+          type: "source_update",
+          payload: {
+            sourceId: "repair-estimate",
+            content: securityReviewContent,
+            mode: "append",
+            securityFinding: {
+              location: maliciousInstructionLocation,
+              text: maliciousInstruction,
+            },
+          },
+        });
+        trace(
+          "Stop the automated claim review",
+          "The safety rule is fail closed: no image analysis, evidence recommendation, customer email, claim decision, or model run continues after the attack is found.",
+          "error",
+          "system",
+          "Untrusted instruction",
+          "Review stopped",
+        );
+        trace(
+          "Send the case to specialist review",
+          "The security control records the event and moves the case to Human Specialist Review. No coverage or payment decision is made.",
+          "complete",
+          "system",
+          "Stopped review + audit record",
+          "Human Specialist Review",
+        );
+        send({
+          type: "security_stop",
+          payload: {
+            title: "Untrusted instruction in Repair Estimate.pdf",
+            detail: "The review stopped before the model continued. The hidden text and its exact document location are preserved in the audit log.",
+            queue: "Human Specialist Review",
+            sourceId: "repair-estimate",
+          },
+        });
+        analysisInProgress = false;
+        streamClosed = true;
+        controller.close();
+        return;
+      }
       trace(
         "Queue Damage.jpg for vision review",
         "Attached the customer's damage photograph to Codex vision. The observation area stays empty until the model returns what it can actually see.",
@@ -242,33 +321,6 @@ export async function POST(request: Request) {
         "Rules.md",
         "Guardrails + email limits",
       );
-      if (untrustedInstructionDetected) {
-        trace(
-          "Detect an instruction inside customer evidence",
-          "The repair estimate contains text aimed at changing the agent's behaviour. Customer documents are data, so the instruction is isolated instead of followed.",
-          "warning",
-          "system",
-          "Repair Estimate.pdf",
-          "Untrusted instruction quarantined",
-        );
-        send({
-          type: "source_update",
-          payload: {
-            sourceId: "repair-estimate",
-            content: securityReviewContent,
-            mode: "append",
-          },
-        });
-        trace(
-          "Keep prohibited actions unavailable",
-          "The document cannot grant approval authority. The server still allows only evidence review, a draft, and a handler routing proposal.",
-          "complete",
-          "system",
-          "Untrusted instruction",
-          "Ignored + specialist review required",
-        );
-      }
-
       trace(
         "Enforce the hidden output contract",
         "The server loaded its internal schema and action checks. Invalid fields, unknown queues, or approval-style recommendations are rejected before reaching the interface.",
@@ -493,9 +545,7 @@ export async function POST(request: Request) {
                 resultReceived = true;
                 trace(
                   "Validate the structured response",
-                  untrustedInstructionDetected
-                    ? "Codex ignored the document instruction, reported it as a risk, and proposed the allowlisted specialist queue. The server accepted the safe draft."
-                    : "Codex returned a schema-valid result. The server accepted the customer email draft and its supporting assessment.",
+                  "Codex returned a schema-valid result. The server accepted the customer email draft and its supporting assessment.",
                   "complete",
                   "system",
                   "Codex JSON response",

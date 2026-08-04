@@ -9,19 +9,18 @@ The case and customer data are synthetic. Public If guidance inspired the termin
 The case selector contains two fixed synthetic scenarios:
 
 - Case 1: a routine damaged-phone claim with three specific evidence gaps
-- Case 2: a repair estimate with a hidden instruction aimed at the agent
+- Case 2: a completely different Erik Holm / Galaxy S24 claim whose repair estimate contains a hidden instruction aimed at the agent
 
-The second case shows the document being treated as untrusted evidence, the instruction being quarantined and surfaced, and any approval-style recommendation being rejected before it reaches the handler.
+The second case shows exactly where the hidden text was found and what it says. A fixed security pre-check stops the run before the model continues, preserves the finding in the audit log, and sends the case to Human Specialist Review without drafting an email or making a claim decision.
 
 - A recognizable incoming claim, policy snapshot, item details, and evidence
 - Live analysis through the locally authenticated Codex CLI
-- A bounded activity trace showing source loading, rule consultation, model execution, and validation
+- A timestamped audit log showing what happened, which source was involved, and why each step was taken
 - Extracted facts with source references and evidence confidence
 - Missing-information and contradiction checks
 - A recommended next action with its rule basis
 - An editable customer follow-up requiring handler approval
 - Suggested routing requiring handler confirmation
-- A timestamped audit trail of system, model, and human actions
 - Guardrails preventing autonomous approval, denial, pricing, compensation, deductible, or repair authorization
 
 ## Run Locally
@@ -56,15 +55,16 @@ Click **Run copilot**. A live run normally takes roughly one minute, depending o
 - `demo-context/evidence-register.md` and `evidence-register-injection.md`: bounded evidence descriptions
 - `demo-context/handling-rules.md`: synthetic handling and guardrail rules
 - `demo-context/analysis-schema.json`: strict model output contract
-- `public/evidence/damaged-phone.png`: generated synthetic evidence photograph
+- `public/evidence/damaged-phone.png`: Case 1 synthetic evidence photograph
+- `public/evidence/damaged-android-case2.png` and `receipt-case2.png`: Case 2 synthetic evidence images
 
-The browser may choose only between the two allowlisted case IDs; it cannot send a prompt or path. The server loads the matching fixed source packet and pipes it to:
+The browser may choose only between the two allowlisted case IDs; it cannot send a prompt or path. Case 1 loads its fixed source packet and pipes it to:
 
 ```text
 codex exec --json --ephemeral --sandbox read-only
 ```
 
-The browser receives sanitized newline-delimited events. Raw private reasoning is not displayed. The trace shows actual source retrieval, Codex lifecycle events, schema validation, and human approvals.
+The browser receives sanitized newline-delimited events. Raw private reasoning is not displayed. Case 1's audit log shows actual source retrieval, Codex lifecycle events, schema validation, and human approvals. Case 2 stops in the fixed document-safety pre-check and never launches Codex.
 
 ## Verification
 

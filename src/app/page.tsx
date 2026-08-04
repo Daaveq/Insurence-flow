@@ -23,6 +23,13 @@ import { demoCases, type AnalysisResult, type CaseId, type DemoCase, type TraceE
 type RunState = "idle" | "running" | "complete" | "error";
 type SourceGroup = "agent" | "customer";
 type SourceKind = "markdown" | "image" | "document";
+type SecurityFinding = { location: string; text: string };
+type SecurityStop = {
+  title: string;
+  detail: string;
+  queue: "Human Specialist Review";
+  sourceId: string;
+};
 
 type SourceFile = {
   id: string;
@@ -33,6 +40,7 @@ type SourceFile = {
   destination: string;
   content: string;
   generatedContent?: string;
+  securityFinding?: SecurityFinding;
   imageSrc?: string;
   observationStatus?: "pending" | "generated";
 };
@@ -153,9 +161,9 @@ function sourceIdsForTraceInput(input?: string) {
   return sourceIds;
 }
 
-const EVENT_PACE_MS = 340;
-const TYPEWRITER_CHUNK_SIZE = 5;
-const TYPEWRITER_INTERVAL_MS = 12;
+const EVENT_PACE_MS = 650;
+const TYPEWRITER_CHUNK_SIZE = 4;
+const TYPEWRITER_INTERVAL_MS = 18;
 
 function prefersReducedMotion() {
   return typeof window !== "undefined" &&
@@ -396,6 +404,7 @@ export default function Home() {
   const [draftBody, setDraftBody] = useState("");
   const [draftIsTyping, setDraftIsTyping] = useState(false);
   const [draftApproved, setDraftApproved] = useState(false);
+  const [securityStop, setSecurityStop] = useState<SecurityStop | null>(null);
   const analysisRequest = useRef<AbortController | null>(null);
   const initialSources = useRef<SourceFile[]>([]);
   const requestVersion = useRef(0);
@@ -445,6 +454,7 @@ export default function Home() {
     setDraftBody("");
     setDraftIsTyping(false);
     setDraftApproved(false);
+    setSecurityStop(null);
     setSelectedSourceId("agent");
     setWorkingSourceIds([]);
     setTypingSourceId(null);
@@ -471,6 +481,7 @@ export default function Home() {
     setError("");
     setDraftIsTyping(false);
     setDraftApproved(false);
+    setSecurityStop(null);
     setSelectedSourceId("agent");
     setWorkingSourceIds(["agent"]);
     setTypingSourceId(null);
@@ -509,10 +520,11 @@ export default function Home() {
             await waitForPresentation(EVENT_PACE_MS, controller.signal);
           }
           if (event.type === "source_update") {
-            const { sourceId, content, mode } = event.payload as {
+            const { sourceId, content, mode, securityFinding } = event.payload as {
               sourceId: string;
               content: string;
               mode: "replace" | "append";
+              securityFinding?: SecurityFinding;
             };
             setSources((files) => files.map((source) =>
               source.id === sourceId
@@ -523,6 +535,7 @@ export default function Home() {
                       ? [source.generatedContent, content].filter(Boolean).join("\n\n")
                       : undefined,
                     observationStatus: "generated",
+                    securityFinding,
                   }
                 : source,
             ));
@@ -530,11 +543,17 @@ export default function Home() {
             setWorkingSourceIds([sourceId]);
             setTypingSourceId(sourceId);
             const revealDuration = Math.min(
-              520,
-              Math.max(340, Math.ceil(content.length / TYPEWRITER_CHUNK_SIZE) * TYPEWRITER_INTERVAL_MS * 0.45),
+              900,
+              Math.max(600, Math.ceil(content.length / TYPEWRITER_CHUNK_SIZE) * TYPEWRITER_INTERVAL_MS * 0.45),
             );
             await waitForPresentation(revealDuration, controller.signal);
             if (version === requestVersion.current) setTypingSourceId(null);
+          }
+          if (event.type === "security_stop") {
+            const stop = event.payload as SecurityStop;
+            setSecurityStop(stop);
+            setSelectedSourceId(stop.sourceId);
+            setWorkingSourceIds([stop.sourceId]);
           }
           if (event.type === "result") {
             const result = event.payload as AnalysisResult;
@@ -606,7 +625,7 @@ export default function Home() {
           <button data-tour="reset-demo" className="secondaryButton" onClick={resetDemo}><RotateCcw size={16} />Reset demo</button>
           <button data-tour="run-copilot" className="primaryButton" onClick={runAnalysis} disabled={runState === "running"}>
             {runState === "running" ? <CircleDashed className="spin" size={16} /> : <Play size={16} fill="currentColor" />}
-            {runState === "running" ? "Analysing" : analysis ? "Run again" : "Run copilot"}
+            {runState === "running" ? "Analysing" : runState === "complete" ? "Run again" : "Run copilot"}
           </button>
         </div>
       </header>
@@ -621,7 +640,7 @@ export default function Home() {
               runAnalysis={runAnalysis} draftSubject={draftSubject} draftBody={draftBody}
               setDraftSubject={setDraftSubject} setDraftBody={setDraftBody}
               draftIsTyping={draftIsTyping} draftApproved={draftApproved} approveDraft={approveDraft}
-              demoCase={demoCase}
+              demoCase={demoCase} securityStop={securityStop}
             />
           </div>
         </section>
@@ -653,7 +672,7 @@ function PanelHeader({ label, title, detail }: { label: string; title: string; d
 }
 
 function RunStatus({ state }: { state: RunState }) {
-  const labels: Record<RunState, string> = { idle: "Ready", running: "Agent running", complete: "Email ready", error: "Run failed" };
+  const labels: Record<RunState, string> = { idle: "Ready", running: "Agent running", complete: "Review complete", error: "Run failed" };
   return <span className={`runStatus runStatus-${state}`}><span />{labels[state]}</span>;
 }
 
@@ -689,15 +708,29 @@ function CaseSummary({ demoCase, showSource }: { demoCase: DemoCase; showSource:
 function FrontEndState({
   state, analysis, error, trace, runAnalysis, draftSubject, draftBody,
   setDraftSubject, setDraftBody, draftIsTyping, draftApproved, approveDraft, demoCase,
+  securityStop,
 }: {
   state: RunState; analysis: AnalysisResult | null; error: string; trace: TraceEvent[];
   runAnalysis: () => void; draftSubject: string; draftBody: string;
   setDraftSubject: (value: string) => void; setDraftBody: (value: string) => void;
   draftIsTyping: boolean; draftApproved: boolean; approveDraft: () => void;
   demoCase: DemoCase;
+  securityStop: SecurityStop | null;
 }) {
   if (state === "idle") return (
     <section className="startState"><Bot size={23} /><div><h2>Ready for review</h2><p>The agent will read the five files shown on the right.</p></div><button data-tour="run-copilot" className="primaryButton" onClick={runAnalysis}><Play size={16} fill="currentColor" />Run copilot</button></section>
+  );
+  if (securityStop) return (
+    <section className="securityStopResult" aria-live="polite">
+      <ShieldAlert size={26} />
+      <div>
+        <span>Review stopped</span>
+        <h2>{securityStop.title}</h2>
+        <p>{securityStop.detail}</p>
+        <strong>Sent to {securityStop.queue}</strong>
+        <small>No claim decision, email, payment, or repair action was made.</small>
+      </div>
+    </section>
   );
   if (state === "running" && !analysis) {
     const currentStep = trace.at(-1);
@@ -821,10 +854,17 @@ function SourcePane({ sources, selectedSource, selectedSourceId, workingSourceId
                     </>
                   )}
                 </pre>
+                {selectedSource.securityFinding && (
+                  <aside className="documentThreatMarker" aria-label="Detected hidden document text">
+                    <span>Hidden text detected here</span>
+                    <strong>{selectedSource.securityFinding.location}</strong>
+                    <blockquote>“{selectedSource.securityFinding.text}”</blockquote>
+                  </aside>
+                )}
               </div>
               {selectedSource.kind === "document" && selectedSource.generatedContent && (
                 <div className={"generatedReview" + (/UNTRUSTED INSTRUCTION DETECTED/.test(selectedSource.generatedContent) ? " securityReview" : "")}>
-                  <span className="extractionLabel">Agent rule review</span>
+                  <span className="extractionLabel">{/UNTRUSTED INSTRUCTION DETECTED/.test(selectedSource.generatedContent) ? "Security finding" : "Agent rule review"}</span>
                   <pre>
                     <TypewriterText
                       text={selectedSource.generatedContent}
@@ -848,13 +888,13 @@ function ActivityPane({ trace, state }: { trace: TraceEvent[]; state: RunState }
   }, [trace.length, state]);
   return (
     <section className="activityPane">
-      <PanelHeader label="Back end" title="Agent activity" detail="Following latest action" />
+      <PanelHeader label="Back end" title="Audit log" detail="What happened and why" />
       <div className="activityList" aria-live="polite">
         {trace.map((event, index) => (
           <article className={`activityStep step-${event.status} ${index === trace.length - 1 ? "stepLatest" : ""}`} key={event.id}>
             <span className="stepNumber">{event.status === "complete" ? <Check size={12} /> : index + 1}</span>
             <div><header><strong>{event.title}</strong><time>{event.timestamp}</time></header>
-              <p aria-label={event.detail}><span aria-hidden="true"><TypewriterText text={event.detail} animate={state === "running"} /></span></p>
+              <p aria-label={event.detail}><b>Why</b><span aria-hidden="true"><TypewriterText text={event.detail} animate={state === "running"} /></span></p>
               {(event.input || event.output) && <div className="dataFlow"><span>{event.input}</span><ArrowRight size={12} /><strong>{event.output}</strong></div>}
             </div>
           </article>
@@ -862,7 +902,7 @@ function ActivityPane({ trace, state }: { trace: TraceEvent[]; state: RunState }
         {state === "running" && <div className="waitingLine"><Activity size={14} />Waiting for the next runtime event</div>}
         <div ref={endRef} aria-hidden="true" />
       </div>
-      <footer className="backendGuardrail"><ShieldCheck size={15} />Read-only inputs · constrained output · human approval</footer>
+      <footer className="backendGuardrail"><ShieldCheck size={15} />Timestamped · source-aware · reasons recorded</footer>
     </section>
   );
 }

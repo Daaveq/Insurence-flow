@@ -301,6 +301,23 @@ button:disabled { cursor: default; opacity: .78; }
 .startState h2, .runningState h2, .errorState h2 { font-size: 13px; line-height: 1.3; }
 .startState p, .runningState p, .errorState p { color: var(--muted); font-size: 9px; line-height: 1.4; margin-top: 3px; }
 .runningState > div > span { color: var(--blue); display: block; font-size: 8px; font-weight: 760; margin-bottom: 3px; text-transform: uppercase; }
+.securityStopResult {
+  align-items: flex-start;
+  background: #fff2f0;
+  border: 1px solid #e0a8a0;
+  color: #742b23;
+  display: grid;
+  gap: 13px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  margin-top: 14px;
+  padding: 17px;
+}
+.securityStopResult > svg { color: #b84335; }
+.securityStopResult span { display: block; font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.securityStopResult h2 { font-size: 15px; line-height: 1.3; margin-top: 3px; }
+.securityStopResult p { color: #784f49; font-size: 9px; line-height: 1.5; margin-top: 6px; }
+.securityStopResult strong { display: block; font-size: 10px; margin-top: 12px; }
+.securityStopResult small { color: #784f49; display: block; font-size: 8px; margin-top: 4px; }
 
 .emailResult { margin-top: 14px; overflow: hidden; }
 .securityOutcome {
@@ -460,6 +477,27 @@ button:disabled { cursor: default; opacity: .78; }
 .documentPreview { background: #edece8; margin: 12px; padding: 17px; }
 .documentPreview .extractionLabel { color: #52645b; }
 .documentPreview pre { color: #18201d; font-family: var(--font-geist-sans), sans-serif; line-height: 1.65; }
+.documentThreatMarker {
+  background: #fff1ef;
+  border: 2px solid #b84335;
+  box-shadow: 0 0 0 4px rgb(184 67 53 / 10%);
+  color: #732d25;
+  margin-top: 24px;
+  padding: 11px 12px;
+  position: relative;
+}
+.documentThreatMarker::before {
+  background: #b84335;
+  content: "";
+  height: 24px;
+  left: 18px;
+  position: absolute;
+  top: -25px;
+  width: 2px;
+}
+.documentThreatMarker span { display: block; font-size: 8px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+.documentThreatMarker strong { display: block; font-size: 9px; line-height: 1.45; margin-top: 4px; }
+.documentThreatMarker blockquote { background: #fff; border-left: 3px solid #b84335; font-family: var(--font-geist-mono), monospace; font-size: 9px; line-height: 1.5; margin-top: 8px; padding: 8px 9px; }
 .generatedReview {
   background: linear-gradient(135deg, #1c2b24, #142019);
   border: 1px solid #375344;
@@ -520,6 +558,7 @@ button:disabled { cursor: default; opacity: .78; }
 .activityStep header strong { color: var(--dark-text); font-size: 9px; }
 .activityStep time { color: #718079; font-family: var(--font-geist-mono), monospace; font-size: 7px; margin-left: 8px; }
 .activityStep p { color: var(--dark-muted); font-size: 8px; line-height: 1.45; margin-top: 3px; }
+.activityStep p b { color: #9bd1b5; font-size: 7px; margin-right: 5px; text-transform: uppercase; }
 .dataFlow { flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .dataFlow span, .dataFlow strong { border-radius: 3px; font-family: var(--font-geist-mono), monospace; font-size: 7px; padding: 3px 5px; }
 .dataFlow span { background: #111614; border: 1px solid var(--dark-line); color: var(--dark-muted); }
