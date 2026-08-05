@@ -565,6 +565,10 @@ button.claimRow { cursor: pointer; }
 button.claimRow:hover { background: #fafbfa; }
 .claimRow-active { box-shadow: inset 4px 0 var(--brand); }
 .claimRow-active:hover { background: #fff8f8; }
+.claimRow-active.claimRowOutcome-complete { background: #f2faf5; box-shadow: inset 4px 0 var(--green); }
+button.claimRow-active.claimRowOutcome-complete:hover { background: #ecf7f0; }
+.claimRow-active.claimRowOutcome-attention { background: #fff3f1; box-shadow: inset 4px 0 var(--danger); }
+button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
 .claimRow-disabled { background: #f3f4f3; color: #717975; }
 .claimRow-disabled .claimPerson, .claimRow-disabled .claimDescription, .claimRow-disabled .claimReceived, .claimRow-disabled .preparationPill, .claimRow-disabled .claimOpen { opacity: .62; }
 .demoHoverMessage {
@@ -586,11 +590,10 @@ button.claimRow:hover { background: #fafbfa; }
   z-index: 3;
 }
 .claimRow-disabled:hover .demoHoverMessage, .claimRow-disabled:focus .demoHoverMessage { opacity: 1; transform: translate(-50%, -50%); }
-.claimPerson strong, .claimPerson small, .claimDescription small { display: block; }
+.claimPerson strong, .claimPerson small { display: block; }
 .claimPerson strong { font-size: 10px; }
 .claimPerson small { color: var(--muted); font-family: var(--font-geist-mono), monospace; font-size: 7px; margin-top: 3px; }
 .claimDescription { font-size: 10px; line-height: 1.4; }
-.claimDescription small { color: var(--brand); font-size: 7px; font-weight: 730; margin-top: 3px; }
 .claimReceived { color: var(--muted); font-size: 8px; }
 .preparationPill { align-items: center; display: flex; font-size: 8px; font-weight: 680; gap: 6px; }
 .preparationPill i { background: #99a19d; border-radius: 50%; height: 7px; width: 7px; }

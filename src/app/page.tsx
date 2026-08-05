@@ -980,18 +980,18 @@ function ClaimsOverview({ portfolioOutcomes, selectCase }: {
         <header>
           <span>Claim and customer</span><span>Description</span><span>Received</span><span>Preparation status</span><span />
         </header>
-        {portfolioClaims.map((claim, index) => {
+        {portfolioClaims.map((claim) => {
           const caseId = "caseId" in claim ? claim.caseId : undefined;
           const outcome = caseId ? portfolioOutcomes[caseId] : undefined;
           const content = <>
             <span className="claimPerson"><strong>{claim.customer}</strong><small>{claim.claim}</small></span>
-            <span className="claimDescription">{claim.description}{caseId && <small>Demo case {index + 1} · Open claim</small>}</span>
+            <span className="claimDescription">{claim.description}</span>
             <span className="claimReceived">{claim.received}</span>
             <span className={"preparationPill preparation-" + (outcome?.tone ?? claim.tone)}><i />{outcome?.label ?? claim.preparation}</span>
             <span className="claimOpen">{caseId ? <ArrowRight size={15} /> : <small>Demo only</small>}</span>
           </>;
           return caseId ? (
-            <button data-tour="available-claim" className="claimRow claimRow-active" key={claim.claim} onClick={() => selectCase(caseId)}>{content}</button>
+            <button data-tour="available-claim" className={"claimRow claimRow-active" + (outcome ? " claimRowOutcome-" + outcome.tone : "")} key={claim.claim} onClick={() => selectCase(caseId)}>{content}</button>
           ) : (
             <div className="claimRow claimRow-disabled" key={claim.claim} tabIndex={0}>
               {content}

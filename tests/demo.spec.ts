@@ -142,6 +142,7 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.getByRole("button", { name: /Lina Berg/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Erik Holm/ })).toBeVisible();
     await expect(page.locator(".claimRow")).toHaveCount(16);
+    await expect(page.getByText(/Demo case [12]/i)).toHaveCount(0);
     await expect(page.getByLabel("Search claims")).toHaveCount(0);
     await expect(page.getByText(/agents preparing cases|need human attention/i)).toHaveCount(0);
 
@@ -382,6 +383,8 @@ test.describe("Claims Copilot demo", () => {
     const linaOverviewRow = page.getByRole("button", { name: /Lina Berg/ });
     await expect(linaOverviewRow).toContainText("Ready for handler review");
     await expect(linaOverviewRow.locator(".preparationPill")).toHaveClass(/preparation-complete/);
+    await expect(linaOverviewRow).toHaveClass(/claimRowOutcome-complete/);
+    await expect(linaOverviewRow).toHaveCSS("background-color", "rgb(242, 250, 245)");
     await linaOverviewRow.click();
     await dismissGuide(page);
     await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
@@ -497,6 +500,8 @@ test.describe("Claims Copilot demo", () => {
     await page.getByRole("button", { name: "All claims" }).click();
     const erikOverviewRow = page.getByRole("button", { name: /Erik Holm/ });
     await expect(erikOverviewRow).toContainText("Malicious attempt · handler attention");
+    await expect(erikOverviewRow).toHaveClass(/claimRowOutcome-attention/);
+    await expect(erikOverviewRow).toHaveCSS("background-color", "rgb(255, 243, 241)");
     await expect(erikOverviewRow.locator(".preparationPill")).toHaveClass(/preparation-attention/);
   });
 
