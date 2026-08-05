@@ -136,6 +136,18 @@ test.describe("Claims Copilot demo", () => {
       if (title === "The Agent window") await expect(claimGuide.locator("p")).toContainText("sourdough recipes");
       if (title === "AGENT.md — role and personality") await expect(claimGuide.locator("p")).toContainText("hard boundaries");
       if (title === "Chat with the case agent") await expect(claimGuide.locator("p")).toContainText("live, case-scoped Codex agent");
+      if (title === "AGENT.md — role and personality") {
+        await expect(page.locator('[data-tour="source-agent"]')).toHaveClass(/sourceActive/);
+        await expect(page.locator(".fileViewer > header strong")).toHaveText("AGENT.md");
+      }
+      if (title === "Rules.md — handling guardrails") {
+        await expect(page.locator('[data-tour="source-rules"]')).toHaveClass(/sourceActive/);
+        await expect(page.locator(".fileViewer > header strong")).toHaveText("Rules.md");
+      }
+      if (title === "Customer evidence") {
+        await expect(page.locator('[data-tour="source-damage"]')).toHaveClass(/sourceActive/);
+        await expect(page.locator(".fileViewer > header strong")).toHaveText("Damage.jpg");
+      }
       await claimGuide.getByRole("button", { name: index === expectedSteps.length - 1 ? "Watch the agent" : "Next" }).click();
     }
     await expect(claimGuide).toHaveCount(0);

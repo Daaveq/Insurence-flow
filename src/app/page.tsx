@@ -576,6 +576,29 @@ export default function Home() {
     () => demoCase ? getClaimTourSteps(demoCase === demoCases.injection) : [],
     [demoCase],
   );
+  useEffect(() => {
+    const target = claimGuideSteps[claimTourStep]?.target;
+    const sourceId = target === "source-agent"
+      ? "agent"
+      : target === "source-rules"
+        ? "rules"
+        : target === "customer-evidence"
+          ? "damage"
+          : null;
+    if (!sourceId || !sources.some((source) => source.id === sourceId)) return;
+
+    let scrollFrame = 0;
+    const selectionFrame = window.requestAnimationFrame(() => {
+      setSelectedSourceId(sourceId);
+      scrollFrame = window.requestAnimationFrame(() => {
+        document.querySelector<HTMLElement>(".fileViewer")?.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(selectionFrame);
+      window.cancelAnimationFrame(scrollFrame);
+    };
+  }, [claimGuideSteps, claimTourStep, sources]);
 
   const resetDemo = (clearPortfolioOutcome = true) => {
     requestVersion.current += 1;
