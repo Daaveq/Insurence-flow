@@ -97,6 +97,8 @@ test.describe("Claims Copilot demo", () => {
 
     const overviewGuide = page.getByRole("dialog", { name: "Overview guide walkthrough" });
     await expect(overviewGuide.getByRole("heading", { name: "Welcome to Claims Copilot" })).toBeVisible();
+    await expect(overviewGuide).toHaveCSS("width", "440px");
+    await expect(overviewGuide.locator("p")).toHaveCSS("font-size", "13px");
     await overviewGuide.getByRole("button", { name: "Next" }).click();
     await expect(overviewGuide.getByRole("heading", { name: "The claims-handler workspace" })).toBeVisible();
     await expect(page.locator(".tourSpotlight")).toHaveCount(1);
@@ -376,6 +378,13 @@ test.describe("Claims Copilot demo", () => {
       "Updated estimate attached",
     ]);
     await expect(page.locator(".communicationEntry").first()).toHaveClass(/communicationExpanded/);
+    await page.getByRole("button", { name: "All claims" }).click();
+    const linaOverviewRow = page.getByRole("button", { name: /Lina Berg/ });
+    await expect(linaOverviewRow).toContainText("Ready for handler review");
+    await expect(linaOverviewRow.locator(".preparationPill")).toHaveClass(/preparation-complete/);
+    await linaOverviewRow.click();
+    await dismissGuide(page);
+    await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
 
     await page.getByRole("button", { name: "Reset case" }).click();
     await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
@@ -386,6 +395,8 @@ test.describe("Claims Copilot demo", () => {
     await page.getByRole("button", { name: /Damage.jpg/ }).first().click();
     await expect(page.getByText("No image observations yet.")).toBeVisible();
     await expect(page.getByText(/The agent saw cracking across the display/)).toHaveCount(0);
+    await page.getByRole("button", { name: "All claims" }).click();
+    await expect(page.getByRole("button", { name: /Lina Berg/ })).toContainText("Ready to start");
   });
 
   test("stops a completely different case at the detected hidden instruction", async ({ page }) => {
@@ -483,6 +494,10 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator(".generatedReview")).toHaveClass(/securityReview/);
     await expect(page.getByText("Audit log", { exact: true })).toBeVisible();
     await expect(page.getByText("Stop the automated claim review")).toBeVisible();
+    await page.getByRole("button", { name: "All claims" }).click();
+    const erikOverviewRow = page.getByRole("button", { name: /Erik Holm/ });
+    await expect(erikOverviewRow).toContainText("Malicious attempt · handler attention");
+    await expect(erikOverviewRow.locator(".preparationPill")).toHaveClass(/preparation-attention/);
   });
 
   test("runs the live Codex flow", async ({ page }) => {

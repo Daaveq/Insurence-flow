@@ -31,6 +31,7 @@ type WorkspaceView = "portfolio" | "claim";
 type FollowUpStage = "none" | "drafting_request" | "request_sent" | "customer_typing" | "customer_replied" | "ingesting_photo" | "agent_replying" | "paused" | "estimate_incoming" | "processing_estimate" | "ready";
 type SourceGroup = "agent" | "customer";
 type SourceKind = "markdown" | "image" | "document";
+type PortfolioOutcome = { label: string; tone: "complete" | "attention" };
 type SecurityFinding = { location: string; text: string };
 type SecurityStop = {
   title: string;
@@ -533,6 +534,7 @@ export default function Home() {
   const [followUpStage, setFollowUpStage] = useState<FollowUpStage>("none");
   const [caseChatOpen, setCaseChatOpen] = useState(false);
   const [securityStop, setSecurityStop] = useState<SecurityStop | null>(null);
+  const [portfolioOutcomes, setPortfolioOutcomes] = useState<Partial<Record<CaseId, PortfolioOutcome>>>({});
   const analysisRequest = useRef<AbortController | null>(null);
   const initialSources = useRef<SourceFile[]>([]);
   const requestVersion = useRef(0);
@@ -567,10 +569,17 @@ export default function Home() {
     [demoCase],
   );
 
-  const resetDemo = () => {
+  const resetDemo = (clearPortfolioOutcome = true) => {
     requestVersion.current += 1;
     analysisRequest.current?.abort();
     analysisRequest.current = null;
+    if (clearPortfolioOutcome && selectedCaseId) {
+      setPortfolioOutcomes((current) => {
+        const next = { ...current };
+        delete next[selectedCaseId];
+        return next;
+      });
+    }
     setRunState("idle");
     setAnalysis(null);
     setTrace(idleTrace);
@@ -589,7 +598,7 @@ export default function Home() {
 
   const selectCase = (caseId: CaseId) => {
     if (runState === "running") return;
-    resetDemo();
+    resetDemo(false);
     initialSources.current = [];
     setSources([]);
     setSourceError("");
@@ -600,7 +609,7 @@ export default function Home() {
   };
 
   const returnToPortfolio = () => {
-    resetDemo();
+    resetDemo(false);
     initialSources.current = [];
     setSources([]);
     setSourceError("");
@@ -616,6 +625,11 @@ export default function Home() {
     analysisRequest.current = controller;
     const version = ++requestVersion.current;
     setRunState("running");
+    setPortfolioOutcomes((current) => {
+      const next = { ...current };
+      delete next[selectedCaseId];
+      return next;
+    });
     setAnalysis(null);
     setTrace(startingTrace);
     setError("");
@@ -694,6 +708,10 @@ export default function Home() {
             const stop = event.payload as SecurityStop;
             setSecurityStop(stop);
             setSelectedSourceId(stop.sourceId);
+            setPortfolioOutcomes((current) => ({
+              ...current,
+              injection: { label: "Malicious attempt · handler attention", tone: "attention" },
+            }));
             setWorkingSourceIds([stop.sourceId]);
           }
           if (event.type === "result") {
@@ -827,10 +845,19 @@ export default function Home() {
       }
       if (transition.next === "ready") {
         setWorkingSourceIds([]);
+        setPortfolioOutcomes((current) => ({
+          ...current,
+          standard: { label: "Ready for handler review", tone: "complete" },
+        }));
         setTrace((events) => [...events, {
-          id: crypto.randomUUID(), timestamp: currentTime(), title: "Updated estimate received and processed",
+          id: crypto.randomUUID(),
+          timestamp: currentTime(),
+          title: "Updated estimate received and processed",
           detail: "The device identifier is now present. The preparation file is complete and ready for a handler to make the remaining decisions.",
-          status: "complete", kind: "analysis", input: "Customer email + revised estimate", output: "Case ready for handler review",
+          status: "complete",
+          kind: "analysis",
+          input: "Customer email + revised estimate",
+          output: "Case ready for handler review",
         }]);
       }
     }, transition.delay);
@@ -851,7 +878,7 @@ export default function Home() {
         <div className="headerActions">
           {workspaceView === "claim" && <>
             <RunStatus state={runState} />
-            <button data-tour="reset-demo" className="secondaryButton" onClick={resetDemo}><RotateCcw size={16} />Reset case</button>
+            <button data-tour="reset-demo" className="secondaryButton" onClick={() => resetDemo()}><RotateCcw size={16} />Reset case</button>
             <button data-tour="run-copilot" className="primaryButton" onClick={runAnalysis} disabled={runState === "running"}>
               {runState === "running" ? <CircleDashed className="spin" size={16} /> : <Play size={16} fill="currentColor" />}
               {runState === "running" ? "Preparing" : runState === "complete" ? "Run again" : "Start preparation"}
@@ -863,7 +890,7 @@ export default function Home() {
       <main className={"demoSplit " + (workspaceView === "portfolio" ? "portfolioView" : "claimView")}>
         <section data-tour="handler-side" className="frontPanel" aria-label="Front end handler view">
           {workspaceView === "portfolio" || !demoCase ? (
-            <ClaimsOverview selectCase={selectCase} />
+            <ClaimsOverview portfolioOutcomes={portfolioOutcomes} selectCase={selectCase} />
           ) : <>
             <div className="claimPanelHeader">
               <button className="backButton" onClick={returnToPortfolio}><ArrowLeft size={15} />All claims</button>
@@ -935,7 +962,10 @@ export default function Home() {
   );
 }
 
-function ClaimsOverview({ selectCase }: { selectCase: (caseId: CaseId) => void }) {
+function ClaimsOverview({ portfolioOutcomes, selectCase }: {
+  portfolioOutcomes: Partial<Record<CaseId, PortfolioOutcome>>;
+  selectCase: (caseId: CaseId) => void;
+}) {
   return (
     <div className="claimsOverview">
       <header className="overviewHero">
@@ -952,11 +982,12 @@ function ClaimsOverview({ selectCase }: { selectCase: (caseId: CaseId) => void }
         </header>
         {portfolioClaims.map((claim, index) => {
           const caseId = "caseId" in claim ? claim.caseId : undefined;
+          const outcome = caseId ? portfolioOutcomes[caseId] : undefined;
           const content = <>
             <span className="claimPerson"><strong>{claim.customer}</strong><small>{claim.claim}</small></span>
             <span className="claimDescription">{claim.description}{caseId && <small>Demo case {index + 1} · Open claim</small>}</span>
             <span className="claimReceived">{claim.received}</span>
-            <span className={"preparationPill preparation-" + claim.tone}><i />{claim.preparation}</span>
+            <span className={"preparationPill preparation-" + (outcome?.tone ?? claim.tone)}><i />{outcome?.label ?? claim.preparation}</span>
             <span className="claimOpen">{caseId ? <ArrowRight size={15} /> : <small>Demo only</small>}</span>
           </>;
           return caseId ? (
