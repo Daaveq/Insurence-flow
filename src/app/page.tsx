@@ -147,7 +147,7 @@ const startingTrace: TraceEvent[] = [{
 
 const portfolioClaims = [
   { caseId: "standard" as const, claim: demoCases.standard.id, customer: demoCases.standard.customer.name, description: "Dropped mobile phone · missing evidence", received: "03 Aug · 09:42", preparation: "Ready to start", tone: "ready" },
-  { caseId: "injection" as const, claim: demoCases.injection.id, customer: demoCases.injection.customer.name, description: "Bicycle fall · document safety review", received: "05 Aug · 08:21", preparation: "Safety check required", tone: "attention" },
+  { caseId: "injection" as const, claim: demoCases.injection.id, customer: demoCases.injection.customer.name, description: "Bicycle fall · document safety review", received: "05 Aug · 08:21", preparation: "Ready to start", tone: "ready" },
   { claim: "IF-CLM-260805-1987", customer: "Maja Nilsson", description: "Water leak · kitchen flooring", received: "05 Aug · 07:58", preparation: "Collecting documents", tone: "working" },
   { claim: "IF-CLM-260805-1931", customer: "Oskar Lind", description: "Bicycle theft · station parking", received: "05 Aug · 07:44", preparation: "Waiting for police report", tone: "waiting" },
   { claim: "IF-CLM-260804-1876", customer: "Sara Ahmed", description: "Travel delay · missed connection", received: "04 Aug · 18:12", preparation: "Case prepared", tone: "complete" },
@@ -781,13 +781,13 @@ export default function Home() {
     if (followUpStage === "drafting_request" && draftIsTyping) return;
     const transitions: Partial<Record<FollowUpStage, { next: FollowUpStage; delay: number }>> = {
       drafting_request: { next: "request_sent", delay: 900 },
-      request_sent: { next: "customer_typing", delay: 2800 },
-      customer_typing: { next: "customer_replied", delay: 5000 },
-      customer_replied: { next: "ingesting_photo", delay: 3000 },
-      ingesting_photo: { next: "agent_replying", delay: 4000 },
-      agent_replying: { next: "paused", delay: 3000 },
-      estimate_incoming: { next: "processing_estimate", delay: 3000 },
-      processing_estimate: { next: "ready", delay: 4000 },
+      request_sent: { next: "customer_typing", delay: 4000 },
+      customer_typing: { next: "customer_replied", delay: 9000 },
+      customer_replied: { next: "ingesting_photo", delay: 4000 },
+      ingesting_photo: { next: "agent_replying", delay: 9000 },
+      agent_replying: { next: "paused", delay: 9000 },
+      estimate_incoming: { next: "processing_estimate", delay: 4000 },
+      processing_estimate: { next: "ready", delay: 9000 },
     };
     const transition = transitions[followUpStage];
     if (!transition) return;
@@ -919,7 +919,7 @@ export default function Home() {
               <div className="handlerChatOverlay">
                 <div className="handlerChatCard">
                   <button className="handlerChatClose" aria-label="Close case agent chat" onClick={() => setCaseChatOpen(false)}><XCircle size={20} /></button>
-                  <AgentChat demoCase={demoCase} state={runState} analysis={analysis} securityStop={securityStop} followUpStage={followUpStage} />
+                  <AgentChat caseId={selectedCaseId!} demoCase={demoCase} state={runState} securityStop={securityStop} followUpStage={followUpStage} />
                 </div>
               </div>
             )}
@@ -1461,55 +1461,83 @@ function ActivityPane({ trace, state, demoCase }: {
   );
 }
 
-function AgentChat({ demoCase, state, analysis, securityStop, followUpStage }: {
+function AgentChat({ caseId, demoCase, state, securityStop, followUpStage }: {
+  caseId: CaseId;
   demoCase: DemoCase;
   state: RunState;
-  analysis: AnalysisResult | null;
   securityStop: SecurityStop | null;
   followUpStage: FollowUpStage;
 }) {
+  type ChatMessage = { role: "handler" | "agent"; body: string };
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Array<{ role: "handler" | "agent"; body: string }>>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [busy, setBusy] = useState(false);
+  const requestRef = useRef<AbortController | null>(null);
+  const endRef = useRef<HTMLDivElement | null>(null);
   const suggestions = securityStop
     ? ["Why did you stop?", "What can the handler do next?"]
     : ["What happened while I was away?", "What still needs a human decision?"];
 
-  const answer = (question: string) => {
-    const lower = question.toLowerCase();
-    const isCaseQuestion = /(claim|case|evidence|photo|estimate|email|message|customer|lina|erik|handler|decision|coverage|compensation|deductible|repair|status|happen|away|next|missing|document|source|timeline|agent|attack|stop|security|fraud|policy)/.test(lower);
-    if (!isCaseQuestion) return "Can't answer that unfortunately, I'm only here as a demo piece.";
-    if (securityStop) {
-      if (/why|stop|happen|attack/.test(lower)) return "I found hidden machine-readable text in the repair estimate instructing me to approve the claim and conceal that action. Customer evidence cannot change my instructions, so I stopped before model analysis or communication and preserved the finding for specialist review.";
-      return "A human specialist should inspect the quarantined estimate and request a clean replacement through an approved channel. I have made no claim decision and contacted no one.";
-    }
-    if (state !== "complete") return "I have only the current claim packet and have not completed the preparation pass yet. Start preparation to let me inspect the evidence and build the case history.";
-    if (/human|decision|need|next/.test(lower)) return "Coverage, compensation, deductible, repair authorization, and the final claim outcome remain human decisions. I can prepare evidence and communications, but I cannot make those decisions.";
-    if (followUpStage === "none" || followUpStage === "drafting_request") return (analysis?.caseSummary ? analysis.caseSummary + " " : "") + "I found missing evidence and am preparing a transparent customer request. Nothing has been sent.";
-    if (["request_sent", "customer_typing"].includes(followUpStage)) return "The prepared request is shown as sent in this synthetic demo. I am waiting for the customer's reply; no real email was sent.";
-    if (["customer_replied", "ingesting_photo", "agent_replying"].includes(followUpStage)) return "The customer supplied the missing rear photo. I am associating it with the claim, reviewing it, and then preparing a transparent acknowledgement.";
-    if (followUpStage === "paused") return "The missing photo is processed and acknowledged. The file is waiting for the revised repair estimate; use New email incoming when you are ready to continue the demo.";
-    if (["estimate_incoming", "processing_estimate"].includes(followUpStage)) return "The revised estimate has arrived. I am checking the identifier, drafting the final acknowledgement, and preparing the handler handoff.";
-    return (analysis?.caseSummary ? analysis.caseSummary + " " : "") + "I collected the missing photo and revised estimate, summarized the exchange, and marked the file ready for handler review. No claim decision was made.";
-  };
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [busy, messages]);
 
-  const submit = (question: string) => {
+  useEffect(() => () => requestRef.current?.abort(), []);
+
+  const submit = async (question: string) => {
     const value = question.trim();
-    if (!value) return;
-    setMessages((current) => [...current, { role: "handler", body: value }, { role: "agent", body: answer(value) }]);
+    if (!value || busy) return;
+
+    const history = messages.slice(-8);
+    const controller = new AbortController();
+    requestRef.current = controller;
+    setMessages((current) => [...current, { role: "handler", body: value }]);
     setInput("");
+    setBusy(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          caseId,
+          question: value,
+          history,
+          stage: followUpStage,
+          reviewState: state,
+        }),
+        signal: controller.signal,
+      });
+      const payload = await response.json() as { reply?: unknown; message?: unknown };
+      if (!response.ok || typeof payload.reply !== "string") {
+        throw new Error(typeof payload.message === "string" ? payload.message : "The case agent could not answer.");
+      }
+      setMessages((current) => [...current, { role: "agent", body: payload.reply as string }]);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      setMessages((current) => [...current, {
+        role: "agent",
+        body: error instanceof Error ? error.message : "The case agent could not answer.",
+      }]);
+    } finally {
+      if (requestRef.current === controller) requestRef.current = null;
+      if (!controller.signal.aborted) setBusy(false);
+    }
   };
 
   return (
     <div className="agentChat">
-      <header><div><Bot size={18} /><span><strong>{demoCase.customer.name}&apos;s claim agent</strong><small>Current claim and relevant rules only</small></span></div><i>Case scoped</i></header>
-      <div className="chatMessages" aria-live="polite">
-        {!messages.length && <div className="chatWelcome"><Sparkles size={18} /><strong>Ask about this claim</strong><p>I can explain the case history, evidence, communications, and preparation work. I cannot make the handler&apos;s decisions.</p></div>}
+      <header><div><Bot size={18} /><span><strong>{demoCase.customer.name}&apos;s claim agent</strong><small>Live Codex · AGENT.md and current claim only</small></span></div><i>Codex live</i></header>
+      <div className="chatMessages" aria-live="polite" aria-busy={busy}>
+        {!messages.length && !busy && <div className="chatWelcome"><Sparkles size={18} /><strong>Ask about this claim</strong><p>I can explain the case history, evidence, communications, and preparation work. I cannot make the handler&apos;s decisions.</p></div>}
         {messages.map((message, index) => <article className={"chatMessage chat-" + message.role} key={index}><span>{message.role === "agent" ? <Bot size={13} /> : <UserRound size={13} />}</span><p>{message.body}</p></article>)}
+        {busy && <article className="chatMessage chat-agent chatThinking"><span><CircleDashed className="spin" size={13} /></span><p>Thinking with Codex…</p></article>}
+        <div ref={endRef} aria-hidden="true" />
       </div>
-      <div className="chatSuggestions">{suggestions.map((suggestion) => <button key={suggestion} onClick={() => submit(suggestion)}>{suggestion}</button>)}</div>
-      <form onSubmit={(event) => { event.preventDefault(); submit(input); }}>
-        <input aria-label="Ask this claim agent" placeholder="Ask about this claim…" value={input} onChange={(event) => setInput(event.target.value)} />
-        <button aria-label="Send question" type="submit"><Send size={14} /></button>
+      <div className="chatSuggestions">{suggestions.map((suggestion) => <button disabled={busy} key={suggestion} onClick={() => void submit(suggestion)}>{suggestion}</button>)}</div>
+      <form onSubmit={(event) => { event.preventDefault(); void submit(input); }}>
+        <input aria-label="Ask this claim agent" disabled={busy} maxLength={600} placeholder="Ask about this claim…" value={input} onChange={(event) => setInput(event.target.value)} />
+        <button aria-label="Send question" disabled={busy || !input.trim()} type="submit"><Send size={14} /></button>
       </form>
     </div>
   );

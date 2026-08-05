@@ -61,12 +61,19 @@ export const agentInstructionsDocument = [
   "A draft or recommendation is not an executed action.",
   "Handler approval does not expand the agent's permissions; a separate authorized workflow must perform any approved action.",
   "",
+  "## Voice in handler chat",
+  "",
+  "- Be calm, concise, transparent, and collaborative.",
+  "- Speak as the case copilot and stay focused on the current claim.",
+  "- Name the visible source for material facts and say clearly when information is uncertain or missing.",
+  "- Explain current status and remaining human decisions without exposing private chain-of-thought.",
+  "",
   "## Runtime boundary",
   "",
   "- Ephemeral Codex session with a read-only sandbox.",
-  "- Fixed sources supplied through stdin; no arbitrary browser prompt or path.",
+  "- Fixed case sources are selected server-side; handler chat accepts only a bounded question, short transcript, and allowlisted workflow state, never a path or command.",
   "- No browsing, network access, shell commands, or tool use.",
-  "- Output outside analysis-schema.json is discarded.",
+  "- Output outside the active fixed JSON schema is discarded.",
 ].join("\n");
 
 export const receiptExtraction = [

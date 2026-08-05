@@ -140,7 +140,8 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.getByRole("region", { name: "Claims overview" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No claim agent loaded" })).toBeVisible();
     await expect(page.getByRole("button", { name: /Lina Berg/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Erik Holm/ })).toBeVisible();
+    const erikReadyRow = page.getByRole("button", { name: /Erik Holm/ });
+    await expect(erikReadyRow).toContainText("Ready to start");
     await expect(page.locator(".claimRow")).toHaveCount(16);
     await expect(page.getByText(/Demo case [12]/i)).toHaveCount(0);
     await expect(page.getByLabel("Search claims")).toHaveCount(0);
@@ -226,7 +227,7 @@ test.describe("Claims Copilot demo", () => {
   });
 
   test("drafts an email, follows the latest step, and resets", async ({ page }) => {
-    test.setTimeout(60_000);
+    test.setTimeout(110_000);
     let releaseResponse!: () => void;
     const responseGate = new Promise<void>((resolve) => {
       releaseResponse = resolve;
@@ -283,6 +284,21 @@ test.describe("Claims Copilot demo", () => {
       });
     });
 
+    const chatRequests: Array<Record<string, unknown>> = [];
+    await page.route("**/api/chat", async (route) => {
+      const request = route.request().postDataJSON() as Record<string, unknown>;
+      chatRequests.push(request);
+      const question = String(request.question ?? "");
+      const reply = /weather/i.test(question)
+        ? "I can only discuss this claim and its preparation."
+        : "I found missing evidence and am preparing a transparent customer request. Nothing has been sent.";
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ reply }),
+      });
+    });
+
     await openDemo(page);
     await page.getByRole("button", { name: "Start preparation" }).first().click();
     await expect(page.getByRole("button", { name: /AGENT.md/ })).toHaveClass(/sourceWorking/);
@@ -302,11 +318,22 @@ test.describe("Claims Copilot demo", () => {
     const handlerChatBox = await page.locator(".handlerChatCard").boundingBox();
     expect(handlerChatBox).not.toBeNull();
     expect(handlerChatBox!.width).toBeLessThanOrEqual(370);
+    await expect(page.getByText("Live Codex · AGENT.md and current claim only")).toBeVisible();
     await page.getByRole("button", { name: "What happened while I was away?" }).click();
     await expect(page.locator(".chat-agent").last()).toContainText(/preparing a transparent customer request|prepared request is shown as sent/);
     await page.getByLabel("Ask this claim agent").fill("What is the weather in Stockholm?");
     await page.getByRole("button", { name: "Send question" }).click();
-    await expect(page.locator(".chat-agent").last()).toContainText("Can't answer that unfortunately, I'm only here as a demo piece.");
+    await expect(page.locator(".chat-agent").last()).toContainText("I can only discuss this claim");
+    expect(chatRequests).toHaveLength(2);
+    expect(chatRequests[0]).toMatchObject({ caseId: "standard", question: "What happened while I was away?", reviewState: "complete" });
+    expect(chatRequests[1]).toMatchObject({
+      caseId: "standard",
+      question: "What is the weather in Stockholm?",
+      history: [
+        { role: "handler", body: "What happened while I was away?" },
+        { role: "agent", body: "I found missing evidence and am preparing a transparent customer request. Nothing has been sent." },
+      ],
+    });
     await page.getByRole("button", { name: "Close case agent chat" }).click();
     await page.locator('[data-tour="source-damage"]').click();
     await expect(page.locator(".extractionLabel")).toHaveText("Agent observations");
@@ -330,7 +357,7 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator('[data-tour="source-rear-device-photo"]')).toContainText("Rear device photo.jpg");
     await expect(page.getByAltText("Preview of Rear device photo.jpg")).toHaveAttribute("src", /rear-device-photo/);
     await expect(page.locator('[data-tour="source-rear-device-photo"]')).toHaveClass(/sourceWorking/, { timeout: 7_000 });
-    await expect(page.locator(".communicationEntry").filter({ hasText: "Thanks, Lina — I’ve received the photo" })).toBeVisible();
+    await expect(page.locator(".communicationEntry").filter({ hasText: "Thanks, Lina — I’ve received the photo" })).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText("Explore the claim before the final email arrives")).toBeVisible({ timeout: 22_000 });
 
     const aiBubble = page.locator(".communication-ai:not(.communicationExpanded)").last();
@@ -370,7 +397,7 @@ test.describe("Claims Copilot demo", () => {
     await expect(incomingEstimate).toHaveClass(/communicationExpanded/);
     await expect(incomingEstimate).toContainText("They came back to me — here is the updated estimate");
     await expect(page.locator('[data-tour="source-updated-repair-estimate"]')).toContainText("Revised repair estimate with matching device identifier");
-    await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 18_000 });
     await expect(page.locator(".communicationEntry").filter({ hasText: "Preparation completed" }).first()).toContainText("Your handler will have the prepared information needed");
     const completedExchange = await page.locator(".communicationEntry header strong").allTextContents();
     expect(completedExchange.slice(0, 3)).toEqual([

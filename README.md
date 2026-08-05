@@ -50,21 +50,25 @@ Click **Run copilot**. A live run normally takes roughly one minute, depending o
 
 - `src/app/page.tsx`: handler workspace and approval interactions
 - `src/app/api/analyze/route.ts`: streamed Codex CLI integration
+- `src/app/api/chat/route.ts`: bounded case-chat Codex CLI integration
 - `src/lib/demo-case.ts`: typed UI case data
 - `demo-context/claim.json` and `claim-injection.json`: two fixed synthetic cases
 - `demo-context/evidence-register.md` and `evidence-register-injection.md`: bounded evidence descriptions
 - `demo-context/handling-rules.md`: synthetic handling and guardrail rules
 - `demo-context/analysis-schema.json`: strict model output contract
 - `public/evidence/damaged-phone.png`: Case 1 synthetic evidence photograph
+- `demo-context/chat-schema.json`: strict case-chat output contract
 - `public/evidence/damaged-android-case2.png` and `receipt-case2.png`: Case 2 synthetic evidence images
 
-The browser may choose only between the two allowlisted case IDs; it cannot send a prompt or path. Case 1 loads its fixed source packet and pipes it to:
+For analysis, the browser may choose only between the two allowlisted case IDs; it cannot send a prompt or path. Case 1 loads its fixed source packet and pipes it to:
 
 ```text
 codex exec --json --ephemeral --sandbox read-only
 ```
 
 The browser receives sanitized newline-delimited events. Raw private reasoning is not displayed. Case 1's audit log shows actual source retrieval, Codex lifecycle events, schema validation, and human approvals. Case 2 stops in the fixed document-safety pre-check and never launches Codex.
+
+Case chat accepts a length-limited handler question, up to eight bounded transcript messages, and allowlisted workflow state. The server selects AGENT.md, rules, case sources, model, schema, command, and working directory; all conversation content is supplied through stdin as untrusted content to an ephemeral read-only Codex session.
 
 ## Verification
 

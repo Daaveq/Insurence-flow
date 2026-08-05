@@ -786,6 +786,10 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
 .chat-handler p { background: #322329; border-color: #5b3942; }
 .chatSuggestions { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 12px 8px; }
 .chatSuggestions button { background: #1d2823; border: 1px solid #3d5047; border-radius: 4px; color: #b9c6c0; cursor: pointer; font-size: 7px; padding: 6px 7px; }
+.chatThinking p { color: var(--dark-muted); font-style: italic; }
+.chatSuggestions button:disabled,
+.agentChat > form input:disabled,
+.agentChat > form button:disabled { cursor: wait; opacity: .55; }
 .agentChat > form { align-items: center; border-top: 1px solid var(--dark-line); display: flex; gap: 6px; padding: 9px 12px; }
 .agentChat > form input { background: #0d1210; border: 1px solid #45534d; border-radius: 4px; color: white; flex: 1; font-size: 8px; padding: 8px; }
 .agentChat > form button { align-items: center; background: var(--brand); border: 0; border-radius: 4px; color: white; cursor: pointer; display: flex; height: 31px; justify-content: center; width: 31px; }
@@ -801,6 +805,7 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
 .handlerChatCard .chatWelcome strong { color: var(--ink); }
 .handlerChatCard .chatMessage > span { background: #e1eee6; color: #315b47; }
 .handlerChatCard .chatMessage p { background: white; border-color: #d6ddd9; color: #3d4742; }
+.handlerChatCard .chatThinking p { color: var(--muted); }
 .handlerChatCard .chat-handler > span { background: #f2e6e8; color: #9a5260; }
 .handlerChatCard .chat-handler p { background: #f9eff1; border-color: #ead2d7; }
 .handlerChatCard .chatSuggestions button { background: white; border-color: #ccd5d0; color: #52615a; }
