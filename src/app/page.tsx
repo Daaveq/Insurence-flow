@@ -1283,9 +1283,20 @@ function SourcePane({ sources, selectedSource, selectedSourceId, workingSourceId
   workingSourceIds: string[]; typingSourceId: string | null;
   sourceError: string; selectSource: (id: string) => void;
 }) {
+  const threatMarkerRef = useRef<HTMLElement | null>(null);
   const groups: Array<{ id: SourceGroup; title: string }> = [
     { id: "agent", title: "Agent" }, { id: "customer", title: "Received from customer" },
   ];
+
+  useEffect(() => {
+    if (!selectedSource?.securityFinding) return;
+    const frame = window.requestAnimationFrame(() => {
+      const marker = threatMarkerRef.current;
+      if (!marker) return;
+      marker.scrollIntoView({ behavior: "smooth", block: "start", inline: "nearest" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [selectedSource?.securityFinding]);
   return (
     <section className="sourcePane">
       <PanelHeader label="Back end" title="Agent inputs" detail="Click a file to inspect it" />
@@ -1359,7 +1370,7 @@ function SourcePane({ sources, selectedSource, selectedSourceId, workingSourceId
                   )}
                 </pre>
                 {selectedSource.securityFinding && (
-                  <aside className="documentThreatMarker" aria-label="Detected hidden document text">
+                  <aside ref={threatMarkerRef} className="documentThreatMarker" aria-label="Detected hidden document text">
                     <span>Hidden text detected here</span>
                     <strong>{selectedSource.securityFinding.location}</strong>
                     <blockquote>“{selectedSource.securityFinding.text}”</blockquote>
