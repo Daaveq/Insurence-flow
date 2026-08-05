@@ -91,39 +91,51 @@ async function openDemo(page: Page, caseName = "Lina Berg") {
 }
 
 test.describe("Claims Copilot demo", () => {
-  test("introduces the portfolio and each claim preparation box", async ({ page }) => {
+  test("introduces the handler and Codex workspaces in the intended order", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/");
 
     const overviewGuide = page.getByRole("dialog", { name: "Overview guide walkthrough" });
     await expect(overviewGuide.getByRole("heading", { name: "Welcome to Claims Copilot" })).toBeVisible();
+    await expect(overviewGuide.locator("p")).toHaveText("This demo shows how case-specific AI agents can prepare insurance claims while human handlers retain every decision that requires judgment.");
     await expect(overviewGuide).toHaveCSS("width", "440px");
     await expect(overviewGuide.locator("p")).toHaveCSS("font-size", "13px");
+
     await overviewGuide.getByRole("button", { name: "Next" }).click();
-    await expect(overviewGuide.getByRole("heading", { name: "The claims-handler workspace" })).toBeVisible();
+    await expect(overviewGuide.getByRole("heading", { name: "The Case Handler view" })).toBeVisible();
+    await expect(overviewGuide.locator("p")).toContainText("everything in the queue and the preparation status");
     await expect(page.locator(".tourSpotlight")).toHaveCount(1);
+
     await overviewGuide.getByRole("button", { name: "Next" }).click();
-    await expect(overviewGuide.getByRole("heading", { name: "A claim-specific agent workspace" })).toBeVisible();
+    await expect(overviewGuide.getByRole("heading", { name: "The AI Agents workspace" })).toBeVisible();
+    await expect(overviewGuide.locator("p")).toContainText("actual Codex workspace");
+
     await overviewGuide.getByRole("button", { name: "Next" }).click();
     await expect(overviewGuide.getByRole("heading", { name: "Choose one of the two demo claims" })).toBeVisible();
+    await expect(overviewGuide.locator("p")).toContainText("Lina’s claim shows successful preparation");
     await expect(page.locator(".tourSpotlight")).toHaveCount(2);
     await overviewGuide.getByRole("button", { name: "Explore claims" }).click();
 
     await page.getByRole("button", { name: /Lina Berg/ }).click();
     const claimGuide = page.getByRole("dialog", { name: "Claim guide walkthrough" });
     const expectedSteps = [
-      "Inside this claim",
+      "The Human Agent view",
       "The claim preparation map",
-      "1. Claim intake",
-      "2. Evidence review",
-      "3. Customer follow-up",
-      "4. Handler handoff",
-      "The case-scoped agent workspace",
-      "Start the preparation pass",
+      "The Agent window",
+      "AGENT.md — role and personality",
+      "Rules.md — handling guardrails",
+      "Customer evidence",
+      "The audit log",
+      "Chat with the case agent",
+      "Reset this case",
+      "Start the live preparation pass",
     ];
     for (const [index, title] of expectedSteps.entries()) {
       await expect(claimGuide.getByRole("heading", { name: title })).toBeVisible();
-      await expect(page.locator(".tourSpotlight")).toHaveCount(index === 7 ? 2 : 1);
+      await expect(page.locator(".tourSpotlight")).toHaveCount(index === expectedSteps.length - 1 ? 2 : 1);
+      if (title === "The Agent window") await expect(claimGuide.locator("p")).toContainText("sourdough recipes");
+      if (title === "AGENT.md — role and personality") await expect(claimGuide.locator("p")).toContainText("hard boundaries");
+      if (title === "Chat with the case agent") await expect(claimGuide.locator("p")).toContainText("live, case-scoped Codex agent");
       await claimGuide.getByRole("button", { name: index === expectedSteps.length - 1 ? "Watch the agent" : "Next" }).click();
     }
     await expect(claimGuide).toHaveCount(0);
@@ -135,7 +147,8 @@ test.describe("Claims Copilot demo", () => {
     await page.goto("/");
     await dismissGuide(page);
 
-    await expect(page.getByRole("heading", { name: "Good morning, Alex" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Good morning, Tobias" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Reset Demo" })).toBeVisible();
     await expect(page.getByAltText("If")).toBeVisible();
     await expect(page.getByRole("region", { name: "Claims overview" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No claim agent loaded" })).toBeVisible();
@@ -530,6 +543,12 @@ test.describe("Claims Copilot demo", () => {
     await expect(erikOverviewRow).toHaveClass(/claimRowOutcome-attention/);
     await expect(erikOverviewRow).toHaveCSS("background-color", "rgb(255, 243, 241)");
     await expect(erikOverviewRow.locator(".preparationPill")).toHaveClass(/preparation-attention/);
+    await page.getByRole("button", { name: "Reset Demo" }).click();
+    await expect(page.getByRole("dialog", { name: "Overview guide walkthrough" }).getByRole("heading", { name: "Welcome to Claims Copilot" })).toBeVisible();
+    await dismissGuide(page);
+    await expect(page.getByRole("button", { name: /Lina Berg/ })).toContainText("Ready to start");
+    await expect(page.getByRole("button", { name: /Erik Holm/ })).toContainText("Ready to start");
+    await expect(page.locator(".claimRowOutcome-attention, .claimRowOutcome-complete")).toHaveCount(0);
   });
 
   test("runs the live Codex flow", async ({ page }) => {

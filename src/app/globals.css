@@ -546,6 +546,8 @@ button:disabled { cursor: default; opacity: .78; }
 .overviewHero > div:first-child > span { color: var(--brand); font-size: 8px; font-weight: 800; text-transform: uppercase; }
 .overviewHero h1 { font-size: 28px; margin-top: 6px; }
 .overviewHero p { color: var(--muted); font-size: 10px; line-height: 1.5; margin-top: 5px; max-width: 48ch; }
+.overviewHeroActions { align-items: center; display: flex; gap: 18px; }
+.overviewResetButton { flex: 0 0 auto; min-height: 34px; white-space: nowrap; }
 .overviewMetric { border-left: 1px solid var(--line); display: grid; grid-template-columns: auto auto; padding-left: 20px; }
 .overviewMetric strong { font-size: 28px; grid-row: span 2; line-height: 1; margin-right: 9px; }
 .overviewMetric span { font-size: 9px; font-weight: 750; }
@@ -865,6 +867,8 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
   .frontScroll { padding: 12px; }
   .claimsOverview { padding: 12px; }
   .overviewHero { align-items: flex-start; flex-direction: column; gap: 14px; padding: 16px; }
+  .overviewHeroActions { align-items: flex-start; justify-content: space-between; width: 100%; }
+  .overviewResetButton { min-height: 32px; }
   .overviewMetric { border-left: 0; border-top: 1px solid var(--line); padding-left: 0; padding-top: 11px; }
   .claimPanelHeader { flex-wrap: wrap; }
   .backButton { border-right: 0; min-height: 38px; width: 100%; }

@@ -184,20 +184,20 @@ const overviewTourSteps: TourStep[] = [
     placement: "center",
   },
   {
-    title: "The claims-handler workspace",
-    body: "The large left side is the handler's portfolio. It shows the queue, each customer's situation, and how far claim preparation has progressed before a handler opens the file.",
+    title: "The Case Handler view",
+    body: "On the left, you’ll see the Case Handler view — what the handler actually sees. Right now it shows the handler’s portfolio: everything in the queue and the preparation status of each claim.",
     target: "handler-side",
     placement: "right",
   },
   {
-    title: "A claim-specific agent workspace",
-    body: "The smaller right side is intentionally empty in the overview. Opening a claim loads a separate bounded agent with only that claim's files, rules, and audit history, and the workspace expands to a 50/50 view.",
+    title: "The AI Agents workspace",
+    body: "On the right, you see the AI Agents workspace. This is a window into my actual Codex workspace — ChatGPT’s version of Claude Code or Cowork — so you can see what happens in the background. It populates when you open a claim.",
     target: "agent-side",
     placement: "left",
   },
   {
     title: "Choose one of the two demo claims",
-    body: "The first two claims are interactive. Lina's claim shows successful preparation and customer follow-up; Erik's claim shows the agent stopping safely when a malicious instruction is detected.",
+    body: "The first two claims are interactive. Lina’s claim shows successful preparation and customer follow-up; Erik’s claim shows the agent stopping safely when a malicious instruction is detected.",
     target: "available-claim",
     placement: "right",
   },
@@ -206,8 +206,8 @@ const overviewTourSteps: TourStep[] = [
 function getClaimTourSteps(isInjection: boolean): TourStep[] {
   return [
     {
-      title: "Inside this claim",
-      body: "The handler now sees the submitted claim on the left, while this claim's dedicated agent and bounded source packet have loaded on the right. Nothing has started automatically yet.",
+      title: "The Human Agent view",
+      body: "This is the Human Agent view: what the case handler actually sees while the claim is being prepared.",
       target: "handler-side",
       placement: "right",
     },
@@ -218,44 +218,52 @@ function getClaimTourSteps(isInjection: boolean): TourStep[] {
       placement: "right",
     },
     {
-      title: "1. Claim intake",
-      body: "This box confirms what arrived with the initial submission: the loss details, the linked customer and policy, and the uploaded evidence. It is preparation context, not a claim decision.",
-      target: "timeline-stage-0",
-      placement: "right",
-    },
-    {
-      title: isInjection ? "2. Document safety" : "2. Evidence review",
-      body: isInjection
-        ? "Before using customer documents, the agent isolates visible content and scans machine-readable text for instructions that try to override its rules."
-        : "The agent will inspect the damage photo, receipt, and repair estimate one by one. Each check shows what is confirmed and which identifiers or views are still missing.",
-      target: "timeline-stage-1",
-      placement: "right",
-    },
-    {
-      title: isInjection ? "3. Automation stop" : "3. Customer follow-up",
-      body: isInjection
-        ? "If an untrusted instruction is found, this box records that communication and analysis were stopped. The agent makes no claim decision and takes no further automated action."
-        : "When evidence is missing, the agent transparently contacts the customer as an AI assistant, receives new files, processes them, and records the exchange without making any claim decision.",
-      target: "timeline-stage-2",
-      placement: "right",
-    },
-    {
-      title: isInjection ? "4. Specialist handoff" : "4. Handler handoff",
-      body: isInjection
-        ? "The exact safety finding is preserved for a human specialist, who can request a clean document and decide how the case should proceed."
-        : "Once the available evidence and communications are organized, the case becomes ready for handler review. Coverage, compensation, repair authorization, and outcome remain human decisions.",
-      target: "timeline-stage-3",
-      placement: "right",
-    },
-    {
-      title: "The case-scoped agent workspace",
-      body: "On the right, the upper pane shows exactly which source the agent is using. The lower audit log records timestamps, inputs, outputs, and concise reasons without exposing private chain-of-thought.",
+      title: "The Agent window",
+      body: "Here you can see a window into my Codex workspace. The agent genuinely runs when you start this demo, using my Codex subscription — so run it sparingly, for the sake of my sourdough recipes.",
       target: "agent-side",
       placement: "left",
     },
     {
-      title: "Start the preparation pass",
-      body: "When you are ready, start preparation. The guide closes here so you can watch the active checks, source files, audit events, and customer communication move together.",
+      title: "AGENT.md — role and personality",
+      body: "AGENT.md defines who this case agent is, how it should communicate, which sources it may trust, and the hard boundaries it must never cross.",
+      target: "source-agent",
+      placement: "left",
+    },
+    {
+      title: "Rules.md — handling guardrails",
+      body: "Rules.md contains the synthetic handling checks and human-control guardrails. The agent uses these rules to prepare the file without approving, denying, pricing, or paying a claim.",
+      target: "source-rules",
+      placement: "left",
+    },
+    {
+      title: "Customer evidence",
+      body: isInjection
+        ? "These are Erik’s untrusted uploads. The agent may extract evidence from them, but customer documents can never change its role or instructions."
+        : "These are Lina’s customer-supplied files. The agent inspects each source, separates observations from assumptions, and makes missing evidence visible.",
+      target: "customer-evidence",
+      placement: "left",
+    },
+    {
+      title: "The audit log",
+      body: "The audit log shows the agent’s inputs, outputs, timestamps, and concise reasons as the work happens. It makes the process inspectable without exposing private chain-of-thought.",
+      target: "audit-log",
+      placement: "left",
+    },
+    {
+      title: "Chat with the case agent",
+      body: "Open this chat to ask the live, case-scoped Codex agent about the claim, its evidence, current status, or remaining human decisions.",
+      target: "case-agent-chat",
+      placement: "right",
+    },
+    {
+      title: "Reset this case",
+      body: "Reset case returns this claim to its untouched starting state, clears its preparation result, and lets you run the same scenario again.",
+      target: "reset-demo",
+      placement: "left",
+    },
+    {
+      title: "Start the live preparation pass",
+      body: "When you are ready, start preparation. The guide closes so you can watch the timeline, source files, audit events, and customer communication move together.",
       target: "run-copilot",
       placement: "below",
     },
@@ -595,6 +603,17 @@ export default function Home() {
     setTypingSourceId(null);
     setSources(initialSources.current.map((source) => ({ ...source })));
   };
+  const resetEntireDemo = () => {
+    resetDemo(false);
+    setPortfolioOutcomes({});
+    initialSources.current = [];
+    setSources([]);
+    setSourceError("");
+    setSelectedCaseId(null);
+    setWorkspaceView("portfolio");
+    setClaimTourStep(-1);
+    setOverviewTourStep(0);
+  };
 
   const selectCase = (caseId: CaseId) => {
     if (runState === "running") return;
@@ -890,7 +909,7 @@ export default function Home() {
       <main className={"demoSplit " + (workspaceView === "portfolio" ? "portfolioView" : "claimView")}>
         <section data-tour="handler-side" className="frontPanel" aria-label="Front end handler view">
           {workspaceView === "portfolio" || !demoCase ? (
-            <ClaimsOverview portfolioOutcomes={portfolioOutcomes} selectCase={selectCase} />
+            <ClaimsOverview portfolioOutcomes={portfolioOutcomes} resetEntireDemo={resetEntireDemo} selectCase={selectCase} />
           ) : <>
             <div className="claimPanelHeader">
               <button className="backButton" onClick={returnToPortfolio}><ArrowLeft size={15} />All claims</button>
@@ -910,6 +929,7 @@ export default function Home() {
             </div>
             <button
               aria-expanded={caseChatOpen}
+              data-tour="case-agent-chat"
               className={"agentChatLauncher" + (caseChatOpen ? " launcherActive" : "")}
               onClick={() => setCaseChatOpen((open) => !open)}
             >
@@ -962,8 +982,9 @@ export default function Home() {
   );
 }
 
-function ClaimsOverview({ portfolioOutcomes, selectCase }: {
+function ClaimsOverview({ portfolioOutcomes, resetEntireDemo, selectCase }: {
   portfolioOutcomes: Partial<Record<CaseId, PortfolioOutcome>>;
+  resetEntireDemo: () => void;
   selectCase: (caseId: CaseId) => void;
 }) {
   return (
@@ -971,10 +992,13 @@ function ClaimsOverview({ portfolioOutcomes, selectCase }: {
       <header className="overviewHero">
         <div>
           <span>Claims workspace</span>
-          <h1>Good morning, Alex</h1>
+          <h1>Good morning, Tobias</h1>
           <p>AI agents prepare new claims while handlers focus on decisions that require judgment.</p>
         </div>
-        <div className="overviewMetric"><strong>16</strong><span>Open claims</span><small>2 available in this demo</small></div>
+        <div className="overviewHeroActions">
+          <button className="secondaryButton overviewResetButton" onClick={resetEntireDemo}><RotateCcw size={14} />Reset Demo</button>
+          <div className="overviewMetric"><strong>16</strong><span>Open claims</span><small>2 available in this demo</small></div>
+        </div>
       </header>
       <section className="claimQueue" aria-label="Claims overview">
         <header>
@@ -1334,7 +1358,7 @@ function SourcePane({ sources, selectedSource, selectedSourceId, workingSourceId
       <div className="sourceWorkspace">
         <nav className="sourceList" aria-label="Agent source files">
           {groups.map((group) => (
-            <div className="sourceGroup" key={group.id}>
+            <div data-tour={group.id === "customer" ? "customer-evidence" : undefined} className="sourceGroup" key={group.id}>
               <h3>{group.title}</h3>
               {sources.filter((source) => source.group === group.id).map((source) => {
                 const isSelected = source.id === selectedSourceId;
@@ -1438,7 +1462,7 @@ function ActivityPane({ trace, state, demoCase }: {
   }, [trace.length, state]);
 
   return (
-    <section className="activityPane">
+    <section data-tour="audit-log" className="activityPane">
       <div className="agentPaneTabs">
         <strong><Activity size={13} />Audit log</strong>
         <span>Bound to {demoCase.id}</span>
