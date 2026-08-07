@@ -602,6 +602,7 @@ test.describe("Claims Copilot demo", () => {
     await page.getByRole("button", { name: "Start preparation" }).first().click();
     await expect(page.getByText("Review stopped", { exact: true })).toBeVisible();
     const erikDone = page.getByRole("dialog", { name: "Demo done" });
+    await expect(erikDone).toHaveCount(0);
     await expect(erikDone).toContainText("That was the demo");
     await expect(erikDone).toContainText("go to the overview and click Reset Demo");
     await erikDone.getByRole("button", { name: "Got it" }).click();

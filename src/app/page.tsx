@@ -1173,7 +1173,7 @@ export default function Home() {
         <DemoMoment key="lina-demo-done" moment={linaDemoDoneMoment} delayMs={1000} />
       )}
       {workspaceView === "claim" && runState === "complete" && securityStop && (
-        <DemoMoment key="erik-demo-done" moment={erikDemoDoneMoment} />
+        <DemoMoment key="erik-demo-done" moment={erikDemoDoneMoment} delayMs={5000} />
       )}
     </div>
   );
