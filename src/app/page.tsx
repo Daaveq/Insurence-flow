@@ -317,7 +317,7 @@ const checkpointMoments: Partial<Record<FollowUpStage, DemoMomentContent>> = {
   request_sent: {
     eyebrow: "Customer contacted",
     title: "The agent has contacted the customer",
-    body: "The transparent email has been sent in this synthetic demo. Explore the files and decisions the agent used to draft it. When you’re ready, click Continue demo.",
+    body: "After reviewing the case, the agent found missing information that it is now requesting from the customer. Explore the files and decisions the agent used to draft it. When you’re ready, click Continue demo.",
     action: "Continue customer exchange",
     working: "Waiting for the customer’s response",
   },
@@ -1170,7 +1170,7 @@ export default function Home() {
         />
       )}
       {workspaceView === "claim" && followUpStage === "ready" && (
-        <DemoMoment key="lina-demo-done" moment={linaDemoDoneMoment} />
+        <DemoMoment key="lina-demo-done" moment={linaDemoDoneMoment} delayMs={1000} />
       )}
       {workspaceView === "claim" && runState === "complete" && securityStop && (
         <DemoMoment key="erik-demo-done" moment={erikDemoDoneMoment} />

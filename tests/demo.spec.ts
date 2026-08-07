@@ -399,6 +399,7 @@ test.describe("Claims Copilot demo", () => {
     const firstPause = page.getByRole("dialog", { name: "Customer contacted" });
     await expect(firstPause).toHaveCount(0);
     await expect(firstPause).toContainText("The agent has contacted the customer", { timeout: 12_000 });
+    await expect(firstPause).toContainText("the agent found missing information that it is now requesting from the customer");
     await expect(firstPause).toContainText("Explore the files and decisions the agent used to draft it");
     await expect(page.getByText("AI sent the preparation email")).toBeVisible();
     await expect(page.locator(".writingIndicator")).toContainText("Waiting for the customer’s response");
@@ -485,6 +486,7 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator(".writingIndicator")).toContainText("final acknowledgement");
     await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 14_000 });
     const demoDone = page.getByRole("dialog", { name: "Demo done" });
+    await expect(demoDone).toHaveCount(0);
     await expect(demoDone).toContainText("The Demo is Done");
     await expect(demoDone).toContainText("This case is now ready for a handler to pick up");
     await expect(demoDone).toContainText("Go and explore Erik’s case");
