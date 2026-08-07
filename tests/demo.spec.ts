@@ -394,7 +394,10 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator(".activityStep.stepLatest")).toContainText(
       "Draft the customer email",
     );
+    const sentEmail = page.locator(".communicationEntry").filter({ hasText: "Information needed to prepare your mobile phone claim" });
+    await expect(sentEmail).toBeVisible();
     const firstPause = page.getByRole("dialog", { name: "Customer contacted" });
+    await expect(firstPause).toHaveCount(0);
     await expect(firstPause).toContainText("The agent has contacted the customer", { timeout: 12_000 });
     await expect(firstPause).toContainText("Explore the files and decisions the agent used to draft it");
     await expect(page.getByText("AI sent the preparation email")).toBeVisible();
@@ -430,6 +433,8 @@ test.describe("Claims Copilot demo", () => {
     await page.getByRole("button", { name: /Continue demo Send acknowledgement/ }).click();
     await expect(page.locator(".writingIndicator")).toContainText("drafting an acknowledgement");
     await expect(page.locator(".communicationEntry").filter({ hasText: "Thanks, Lina — I’ve received the photo" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".writingIndicator")).toContainText("Customer is writing");
+    await expect(page.locator(".communicationEntry").filter({ hasText: "Updated estimate attached" })).toHaveCount(0);
     await expect(page.getByText("The agent is waiting for the revised estimate")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Continue demo Receive revised estimate/ })).toHaveCount(0);
 
@@ -473,11 +478,15 @@ test.describe("Claims Copilot demo", () => {
     await expect(estimatePause).toContainText("All requested evidence is now present", { timeout: 18_000 });
     await expect(page.locator(".writingIndicator")).toContainText("Writing the final acknowledgement");
     await estimatePause.getByRole("button", { name: "Got it" }).click();
+    await page.locator('[data-tour="source-updated-repair-estimate"]').click();
+    await expect(page.locator(".generatedReview")).toContainText("This is an updated repair estimate supplied after the agent requested a revised document");
+    await expect(page.locator(".generatedReview")).toContainText("Rule: Device identifier present: Confirmed");
     await page.getByRole("button", { name: /Continue demo Send final reply/ }).click();
     await expect(page.locator(".writingIndicator")).toContainText("final acknowledgement");
     await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 14_000 });
     const demoDone = page.getByRole("dialog", { name: "Demo done" });
-    await expect(demoDone).toContainText("This demo is done");
+    await expect(demoDone).toContainText("The Demo is Done");
+    await expect(demoDone).toContainText("This case is now ready for a handler to pick up");
     await expect(demoDone).toContainText("Go and explore Erik’s case");
     await expect(page.getByRole("button", { name: /Back to both cases|Open Erik’s case/ })).toHaveCount(0);
     await demoDone.getByRole("button", { name: "Got it" }).click();

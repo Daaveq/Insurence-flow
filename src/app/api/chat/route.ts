@@ -91,7 +91,7 @@ function workflowSummary(caseId: CaseId, stage: string, reviewState: string) {
     ingesting_photo: "The newly supplied rear-device photo is being associated with the claim and reviewed.",
     photo_reviewed: "The rear-device photo has been reviewed: the rear view is confirmed but no device identifier is visible, and the agent is visibly writing the acknowledgement.",
     agent_replying: "The rear-device photo was reviewed and a transparent acknowledgement is being drafted.",
-    paused: "The rear-device photo was acknowledged, and the synthetic exchange is continuing automatically toward the revised estimate.",
+    paused: "The rear-device photo was acknowledged, and the customer is shown composing the reply that will include the revised estimate.",
     estimate_incoming: "The revised estimate has landed, and the agent continues automatically into identifier validation.",
     processing_estimate: "The revised estimate is being checked and the final customer acknowledgement is being drafted.",
     estimate_reviewed: "The revised estimate has been checked and the missing device identifier is confirmed. The agent is visibly writing the final acknowledgement and handler handoff.",

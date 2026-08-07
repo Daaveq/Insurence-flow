@@ -95,6 +95,22 @@ const updatedRepairEstimateSource: SourceFile = {
   ].join("\n"),
 };
 
+const updatedRepairEstimateReview = [
+  "AGENT ESTIMATE REVIEW — FOLLOW-UP",
+  "",
+  "This is an updated repair estimate supplied after the agent requested a revised document.",
+  "It identifies Lina Berg’s Apple iPhone 15 and now includes IMEI 35 874312 904216 7.",
+  "The device identifier requested in the earlier email is present, so this evidence gap is resolved.",
+  "",
+  "RULE CHECKS",
+  "",
+  "Rule: Requested updated estimate supplied: Confirmed",
+  "The document is marked as updated and was received in response to the follow-up request.",
+  "",
+  "Rule: Device identifier present: Confirmed",
+  "The revised estimate includes the missing IMEI for handler review.",
+].join("\n");
+
 const rearDevicePhotoSource: SourceFile = {
   id: "rear-device-photo",
   name: "Rear device photo.jpg",
@@ -323,8 +339,8 @@ const checkpointMoments: Partial<Record<FollowUpStage, DemoMomentContent>> = {
 
 const linaDemoDoneMoment: DemoMomentContent = {
   eyebrow: "Demo done",
-  title: "This demo is done",
-  body: "Go and explore Erik’s case to see what happens when a malicious attempt comes through.",
+  title: "The Demo is Done",
+  body: "This case is now ready for a handler to pick up. All the information was collected before they opened it. Go and explore Erik’s case to see what happens when a malicious attempt comes through.",
   working: "Case ready for handler review",
 };
 
@@ -550,11 +566,21 @@ function DemoTour({
   );
 }
 
-function DemoMoment({ moment, onContinue }: {
+function DemoMoment({ moment, onContinue, delayMs = 0 }: {
   moment: DemoMomentContent;
   onContinue?: () => void;
+  delayMs?: number;
 }) {
+  const [isVisible, setIsVisible] = useState(delayMs === 0);
   const [cardVisible, setCardVisible] = useState(true);
+
+  useEffect(() => {
+    if (delayMs === 0) return;
+    const timeout = window.setTimeout(() => setIsVisible(true), delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [delayMs]);
+
+  if (!isVisible) return null;
 
   return (
     <aside className="demoMoment" aria-live="polite">
@@ -928,14 +954,14 @@ export default function Home() {
     if (followUpStage === "drafting_request" && draftIsTyping) return;
     const transitions: Partial<Record<FollowUpStage, { next: FollowUpStage; delay: number }>> = {
       drafting_request: { next: "request_sent", delay: 650 },
-      customer_typing: { next: "customer_replied", delay: 9000 },
+      customer_typing: { next: "customer_replied", delay: 5000 },
       customer_replied: { next: "ingesting_photo", delay: 4000 },
       ingesting_photo: { next: "photo_reviewed", delay: 9000 },
-      agent_replying: { next: "paused", delay: 9000 },
-      paused: { next: "estimate_incoming", delay: 4000 },
+      agent_replying: { next: "paused", delay: 5000 },
+      paused: { next: "estimate_incoming", delay: 5000 },
       estimate_incoming: { next: "processing_estimate", delay: 4000 },
-      processing_estimate: { next: "estimate_reviewed", delay: 9000 },
-      final_replying: { next: "ready", delay: 9000 },
+      processing_estimate: { next: "estimate_reviewed", delay: 5000 },
+      final_replying: { next: "ready", delay: 5000 },
     };
     const transition = transitions[followUpStage];
     if (!transition) return;
@@ -1011,6 +1037,9 @@ export default function Home() {
       }
       if (transition.next === "estimate_reviewed") {
         setWorkingSourceIds([updatedRepairEstimateSource.id]);
+        setSources((files) => files.map((source) => source.id === updatedRepairEstimateSource.id
+          ? { ...source, generatedContent: updatedRepairEstimateReview }
+          : source));
         setTrace((events) => [...events, {
           id: crypto.randomUUID(), timestamp: currentTime(), title: "Updated estimate processed",
           detail: "The revised estimate contains the missing device identifier. All requested evidence is now present for handler review.",
@@ -1133,7 +1162,12 @@ export default function Home() {
         />
       ) : null}
       {workspaceView === "claim" && checkpointMoments[followUpStage] && (
-        <DemoMoment key={followUpStage} moment={checkpointMoments[followUpStage]!} onContinue={continueDemo} />
+        <DemoMoment
+          key={followUpStage}
+          moment={checkpointMoments[followUpStage]!}
+          onContinue={continueDemo}
+          delayMs={followUpStage === "request_sent" ? 1000 : 0}
+        />
       )}
       {workspaceView === "claim" && followUpStage === "ready" && (
         <DemoMoment key="lina-demo-done" moment={linaDemoDoneMoment} />
@@ -1362,6 +1396,8 @@ function CommunicationLog({
         ? { actor: "AI assistant", label: "Ingesting and reviewing the rear phone photo" }
         : stage === "agent_replying"
           ? { actor: "AI assistant", label: "Photo processed · drafting an acknowledgement" }
+          : stage === "paused"
+            ? { actor: demoCase.customer.name, label: "Customer is writing" }
           : stage === "processing_estimate"
           ? { actor: "AI assistant", label: "Reading the updated estimate and drafting a reply" }
           : stage === "final_replying"
