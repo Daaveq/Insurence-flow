@@ -178,6 +178,77 @@ button:disabled { cursor: default; opacity: .78; }
 .tourSkip { background: transparent; border: 0; color: var(--muted); }
 .tourBack { background: white; border: 1px solid #c7ceca; }
 .tourNext { background: var(--brand); border: 1px solid var(--brand); color: white; }
+
+.demoMoment {
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: 90;
+}
+.demoMomentFlash {
+  animation: demoMomentFlash 1.15s ease-out both;
+  background: rgb(5 9 7 / 78%);
+  inset: 0;
+  position: absolute;
+}
+.demoMomentCard {
+  animation: demoMomentCardIn .42s .55s ease-out both;
+  background: #fdfefd;
+  border: 1px solid #b8d7c6;
+  border-radius: 8px;
+  box-shadow: 0 18px 70px rgb(0 0 0 / 28%), 0 0 0 2px rgb(185 239 210 / 28%);
+  max-width: calc(100vw - 32px);
+  padding: 20px 22px;
+  position: fixed;
+  right: 24px;
+  top: 82px;
+  width: 410px;
+}
+.demoMomentCard > span {
+  color: var(--brand);
+  display: block;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 9px;
+  font-weight: 780;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.demoMomentCard h2 { font-size: 18px; line-height: 1.3; margin-top: 8px; }
+.demoMomentCard p { color: #4f5c56; font-size: 12px; line-height: 1.6; margin-top: 8px; }
+.demoMomentContinue {
+  align-items: center;
+  animation: demoMomentContinueIn .35s .8s ease-out both;
+  background: rgb(253 254 253 / 94%);
+  border: 1px solid #b8c7bf;
+  border-radius: 999px;
+  bottom: 18px;
+  box-shadow: 0 8px 28px rgb(0 0 0 / 18%);
+  cursor: pointer;
+  display: flex;
+  font-size: 10px;
+  font-weight: 740;
+  gap: 7px;
+  left: 50%;
+  min-height: 34px;
+  padding: 8px 13px;
+  pointer-events: auto;
+  position: fixed;
+  transform: translateX(-50%);
+}
+.demoMomentContinue:hover { background: white; border-color: #86a995; }
+@keyframes demoMomentFlash {
+  0% { opacity: 0; }
+  18%, 58% { opacity: 1; }
+  100% { opacity: 0; visibility: hidden; }
+}
+@keyframes demoMomentCardIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes demoMomentContinueIn {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
 .tourNext:hover { background: var(--brand-dark); }
 
 .demoSplit {
@@ -670,11 +741,6 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
 .timeline-ready { background: var(--green-soft); border-color: #acd3bc; box-shadow: inset 0 3px var(--green); }
 .timeline-ready > header strong { color: var(--green); }
 
-.incomingEmailButton { align-items: center; background: var(--brand); border: 1px solid var(--brand); border-radius: 5px; color: white; cursor: pointer; display: flex; flex: 0 0 auto; gap: 8px; padding: 9px 10px; text-align: left; }
-.incomingEmailButton span strong, .incomingEmailButton span small { display: block; }
-.incomingEmailButton span strong { font-size: 9px; }
-.incomingEmailButton span small { color: #ffdce2; font-size: 7px; margin-top: 2px; }
-
 
 .communicationLog { min-height: 330px; scroll-margin: 22px; transition: border-color .2s ease, box-shadow .2s ease; }
 .communicationLog:not(.communicationStage-none) { border-color: #9fc6b0; box-shadow: 0 10px 28px rgb(31 83 55 / 10%); }
@@ -706,10 +772,6 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
 .writingIndicator b:nth-child(2) { animation-delay: .16s; }
 .writingIndicator b:nth-child(3) { animation-delay: .32s; }
 @keyframes writingDot { 0%, 60%, 100% { opacity: .32; transform: translateY(0); } 30% { opacity: 1; transform: translateY(-3px); } }
-.logPause { align-items: center; background: #fff8ee; border-bottom: 1px solid #e6cba6; display: flex; gap: 14px; justify-content: space-between; padding: 13px 14px; }
-.logPause > div > span { color: #a46619; display: block; font-size: 7px; font-weight: 800; text-transform: uppercase; }
-.logPause > div > strong { display: block; font-size: 10px; margin-top: 2px; }
-.logPause > div > p { color: var(--muted); font-size: 7px; line-height: 1.45; margin-top: 3px; max-width: 56ch; }
 .logReady { align-items: center; background: var(--green-soft); border-bottom: 1px solid #b7d6c4; display: flex; gap: 10px; padding: 12px 14px; }
 .logReady > span { align-items: center; background: var(--green); border-radius: 50%; color: white; display: flex; height: 31px; justify-content: center; width: 31px; }
 .logReady small, .logReady strong, .logReady p { display: block; }
@@ -817,6 +879,8 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
 
 @media (prefers-reduced-motion: reduce) {
   .sourceGroup em > span, .typewriterCursor { animation: none; }
+  .demoMomentCard, .demoMomentContinue { animation: none; }
+  .demoMomentFlash { display: none; }
 }
 
 @media (max-width: 1120px) {
@@ -873,8 +937,9 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
   .claimPanelHeader { flex-wrap: wrap; }
   .backButton { border-right: 0; min-height: 38px; width: 100%; }
   .timelineStages { grid-template-columns: repeat(4, minmax(170px, 1fr)); }
-  .incomingEmailButton { width: 100%; }
-  .logPause, .logDraftCard > footer { align-items: flex-start; flex-direction: column; }
+  .demoMomentCard { bottom: 72px; left: 14px; right: 14px; top: auto; width: auto; }
+  .demoMomentContinue { bottom: 18px; }
+  .logDraftCard > footer { align-items: flex-start; flex-direction: column; }
   .logDraftCard .primaryButton { justify-content: center; width: 100%; }
   .communicationLog > header { align-items: flex-start; gap: 5px; }
   .handlerChatOverlay { inset: 0; padding: 12px 12px 58px; position: fixed; z-index: 46; }
