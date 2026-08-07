@@ -4,6 +4,10 @@ A polished Next.js prototype showing how a claims handler can turn an incoming d
 
 The case and customer data are synthetic. Public If guidance inspired the terminology and repair-first workflow; this repository does not contain If internal rules or real customer data.
 
+## Public Demo
+
+The supervised VPS deployment is available at [co-pilot-ai.daviddemos.com](https://co-pilot-ai.daviddemos.com). The Next.js production server and its named Cloudflare Tunnel run as separate user-level systemd services defined under `ops/`; both are enabled for reboot startup and failure recovery. Tunnel credentials remain outside the repository.
+
 ## What The Demo Shows
 
 The case selector contains two fixed synthetic scenarios:

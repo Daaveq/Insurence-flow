@@ -1,0 +1,7 @@
+tunnel: b4aa89f7-3fb9-41db-ade5-8a746f720f95
+credentials-file: /home/david/.cloudflared/b4aa89f7-3fb9-41db-ade5-8a746f720f95.json
+
+ingress:
+  - hostname: co-pilot-ai.daviddemos.com
+    service: http://127.0.0.1:3001
+  - service: http_status:404

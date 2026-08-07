@@ -11,6 +11,7 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 - AI runtime: project-pinned Codex CLI 0.146.0 using the existing local ChatGPT login; no OpenAI API key or direct API integration.
 - GitHub repository: `git@github.com:Daaveq/Insurence-flow.git`.
 - Published branch: `main`; current task branch: `chore/reliable-demo-hosting`.
+- Public demo: `https://co-pilot-ai.daviddemos.com`, served from the VPS through the named `if-claims-copilot` Cloudflare Tunnel.
 
 ## Product Experience
 
@@ -79,7 +80,8 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 - The latest verified standard-case Luna browser run completed in 32.7 seconds on this host; runtime may vary.
 - After the 2026-08-04 host restart, Playwright system libraries were unavailable and `install-deps` required an interactive sudo password. Static browser tests were reverified with non-root libraries unpacked under `/tmp/playwright-libs.N2AEkE`; a future clean host should install Playwright Chromium dependencies normally.
 - The VPS production server on port 3001 is managed by the enabled user-level `if-claims-copilot.service`, defined in `ops/if-claims-copilot.service`. User lingering is enabled, so the service starts after VPS reboot and restarts after failure without an interactive login.
-- The former TryCloudflare quick tunnel is offline and must not be treated as a durable public URL. A stable public demo requires a named Cloudflare Tunnel attached to a domain in the user's Cloudflare account and a supervised `cloudflared` service.
+- The former TryCloudflare quick tunnel is retired. The named Cloudflare Tunnel uses `ops/cloudflared-config.yml` and the enabled user-level `if-claims-copilot-tunnel.service`; credentials remain untracked under `~/.cloudflared/`. Both the app and tunnel start after VPS reboot and restart after failure.
+- The public HTTPS home page and source API return HTTP 200, the hostname survives a controlled tunnel restart, a real streamed Luna analysis completes with a schema-valid guarded result, and the bounded case-chat route returns a valid reply through the public hostname.
 
 ## Operating Rules
 
@@ -114,11 +116,11 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 ## Open Questions
 
 - Whether the first review should adjust visual branding, claim details, or the recommended handler flow.
-- Which Cloudflare-managed domain and hostname should be attached to the VPS through a named tunnel.
+- What content and navigation should appear on the future `daviddemos.com` landing page.
 
 ## Next Steps
 
 - Review the new queue-first claim-preparation flow with the user and refine the evaluator path and synthetic communication pacing.
 - Review the prompt-injection case with the user, then add the water-damage case with missing documentation.
 - Add the sensitive or ambiguous escalation case last.
-- Configure a named Cloudflare Tunnel and supervise `cloudflared` after the user supplies the Cloudflare domain/hostname and tunnel authorization.
+- Build the simple `daviddemos.com` landing page when the user is ready to present additional demos.
