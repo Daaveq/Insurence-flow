@@ -28,7 +28,7 @@ import { demoCases, type AnalysisResult, type CaseId, type DemoCase, type TraceE
 
 type RunState = "idle" | "running" | "complete" | "error";
 type WorkspaceView = "portfolio" | "claim";
-type FollowUpStage = "none" | "drafting_request" | "request_sent" | "customer_typing" | "customer_replied" | "ingesting_photo" | "agent_replying" | "paused" | "estimate_incoming" | "processing_estimate" | "ready";
+type FollowUpStage = "none" | "drafting_request" | "request_ready" | "request_sent" | "customer_typing" | "customer_replied" | "ingesting_photo" | "photo_reviewed" | "agent_replying" | "paused" | "estimate_incoming" | "processing_estimate" | "estimate_reviewed" | "final_replying" | "ready";
 type SourceGroup = "agent" | "customer";
 type SourceKind = "markdown" | "image" | "document";
 type PortfolioOutcome = { label: string; tone: "complete" | "attention" };
@@ -196,9 +196,9 @@ const overviewTourSteps: TourStep[] = [
     placement: "left",
   },
   {
-    title: "Choose one of the two demo claims",
-    body: "The first two claims are interactive. Lina’s claim shows successful preparation and customer follow-up; Erik’s claim shows the agent stopping safely when a malicious instruction is detected.",
-    target: "available-claim",
+    title: "Start with Lina’s claim",
+    body: "Begin with the first claim, Lina Berg. It is the full preparation experience: the agent reviews evidence, identifies gaps, and works through a transparent customer follow-up. When it finishes, the demo will guide you to Erik’s malicious-document case.",
+    target: "recommended-claim",
     placement: "right",
   },
 ];
@@ -268,6 +268,24 @@ function getClaimTourSteps(isInjection: boolean): TourStep[] {
       placement: "below",
     },
   ];
+}
+
+function getCaseIntroSteps(caseId: CaseId): TourStep[] {
+  if (caseId === "injection") {
+    return [{
+      title: "Case 2 — malicious document attempt",
+      body: "This time, a customer document contains a hidden instruction that tries to override the agent and approve the claim. Start preparation to see the safety control detect the attempt, stop automation, preserve the evidence, and send the case to a human specialist without making a claim decision.",
+      target: "handler-side",
+      placement: "right",
+    }];
+  }
+
+  return [{
+    title: "Case 1 — guided claim preparation",
+    body: "This case shows the complete preparation experience. The flow pauses after every important event so you can inspect the handler view, sources, and audit log before continuing.",
+    target: "handler-side",
+    placement: "right",
+  }];
 }
 
 function currentTime() {
@@ -527,6 +545,8 @@ export default function Home() {
   const [selectedCaseId, setSelectedCaseId] = useState<CaseId | null>(null);
   const [overviewTourStep, setOverviewTourStep] = useState(0);
   const [claimTourStep, setClaimTourStep] = useState(-1);
+  const [claimTourVariant, setClaimTourVariant] = useState<"full" | "case" | null>(null);
+  const [introducedCaseIds, setIntroducedCaseIds] = useState<CaseId[]>([]);
   const [runState, setRunState] = useState<RunState>("idle");
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [trace, setTrace] = useState<TraceEvent[]>(idleTrace);
@@ -573,8 +593,12 @@ export default function Home() {
     [selectedSourceId, sources],
   );
   const claimGuideSteps = useMemo(
-    () => demoCase ? getClaimTourSteps(demoCase === demoCases.injection) : [],
-    [demoCase],
+    () => !demoCase || !selectedCaseId || !claimTourVariant
+      ? []
+      : claimTourVariant === "full"
+        ? getClaimTourSteps(demoCase === demoCases.injection)
+        : getCaseIntroSteps(selectedCaseId),
+    [claimTourVariant, demoCase, selectedCaseId],
   );
   useEffect(() => {
     const target = claimGuideSteps[claimTourStep]?.target;
@@ -635,6 +659,8 @@ export default function Home() {
     setSelectedCaseId(null);
     setWorkspaceView("portfolio");
     setClaimTourStep(-1);
+    setClaimTourVariant(null);
+    setIntroducedCaseIds([]);
     setOverviewTourStep(0);
   };
 
@@ -646,7 +672,11 @@ export default function Home() {
     setSourceError("");
     setSelectedCaseId(caseId);
     setOverviewTourStep(overviewTourSteps.length);
-    setClaimTourStep(0);
+    const isFirstClaim = introducedCaseIds.length === 0;
+    const caseWasIntroduced = introducedCaseIds.includes(caseId);
+    setClaimTourVariant(isFirstClaim ? "full" : caseWasIntroduced ? null : "case");
+    setClaimTourStep(isFirstClaim || !caseWasIntroduced ? 0 : -1);
+    if (!caseWasIntroduced) setIntroducedCaseIds((current) => [...current, caseId]);
     setWorkspaceView("claim");
   };
 
@@ -657,6 +687,7 @@ export default function Home() {
     setSourceError("");
     setSelectedCaseId(null);
     setClaimTourStep(-1);
+    setClaimTourVariant(null);
     setWorkspaceView("portfolio");
   };
 
@@ -811,6 +842,63 @@ export default function Home() {
     }]);
   };
 
+  const continueDemo = () => {
+    if (followUpStage === "request_ready") {
+      setFollowUpStage("request_sent");
+      setTrace((events) => [...events, {
+        id: crypto.randomUUID(), timestamp: currentTime(), title: "AI sent the preparation email",
+        detail: "The prepared request is shown as sent inside this synthetic demo. No real external email is sent.",
+        status: "complete", kind: "analysis", input: "Prepared information request", output: "Synthetic email sent · awaiting customer",
+      }]);
+      return;
+    }
+
+    if (followUpStage === "customer_replied") {
+      setFollowUpStage("ingesting_photo");
+      setSelectedSourceId(rearDevicePhotoSource.id);
+      setWorkingSourceIds([rearDevicePhotoSource.id]);
+      setTrace((events) => [...events, {
+        id: crypto.randomUUID(), timestamp: currentTime(), title: "Rear photo ingestion started",
+        detail: "The new customer image was registered and opened for evidence review.",
+        status: "active", kind: "analysis", input: "Rear device photo.jpg", output: "Image review in progress",
+      }]);
+      return;
+    }
+
+    if (followUpStage === "photo_reviewed") {
+      setFollowUpStage("agent_replying");
+      setWorkingSourceIds([]);
+      return;
+    }
+
+    if (followUpStage === "paused") {
+      receiveUpdatedEstimate();
+      return;
+    }
+
+    if (followUpStage === "estimate_incoming") {
+      setFollowUpStage("processing_estimate");
+      setSelectedSourceId(updatedRepairEstimateSource.id);
+      setWorkingSourceIds([updatedRepairEstimateSource.id]);
+      setTrace((events) => [...events, {
+        id: crypto.randomUUID(), timestamp: currentTime(), title: "Updated estimate review started",
+        detail: "The agent opened the revised estimate and began checking the new device identifier against the prepared file.",
+        status: "active", kind: "analysis", input: "Updated Repair Estimate.pdf", output: "Estimate review in progress",
+      }]);
+      return;
+    }
+
+    if (followUpStage === "estimate_reviewed") {
+      setFollowUpStage("final_replying");
+      setWorkingSourceIds([]);
+      setTrace((events) => [...events, {
+        id: crypto.randomUUID(), timestamp: currentTime(), title: "Final acknowledgement drafting",
+        detail: "All requested evidence is now present. The agent is preparing the final synthetic acknowledgement and handler handoff.",
+        status: "active", kind: "analysis", input: "Completed evidence packet", output: "Final reply in progress",
+      }]);
+    }
+  };
+
   useEffect(() => {
     if (followUpStage === "none") return;
     const frame = window.requestAnimationFrame(() => {
@@ -822,30 +910,18 @@ export default function Home() {
   useEffect(() => {
     if (followUpStage === "drafting_request" && draftIsTyping) return;
     const transitions: Partial<Record<FollowUpStage, { next: FollowUpStage; delay: number }>> = {
-      drafting_request: { next: "request_sent", delay: 900 },
+      drafting_request: { next: "request_ready", delay: 650 },
       request_sent: { next: "customer_typing", delay: 4000 },
       customer_typing: { next: "customer_replied", delay: 9000 },
-      customer_replied: { next: "ingesting_photo", delay: 4000 },
-      ingesting_photo: { next: "agent_replying", delay: 9000 },
+      ingesting_photo: { next: "photo_reviewed", delay: 9000 },
       agent_replying: { next: "paused", delay: 9000 },
-      estimate_incoming: { next: "processing_estimate", delay: 4000 },
-      processing_estimate: { next: "ready", delay: 9000 },
+      processing_estimate: { next: "estimate_reviewed", delay: 9000 },
+      final_replying: { next: "ready", delay: 9000 },
     };
     const transition = transitions[followUpStage];
     if (!transition) return;
     const timeout = window.setTimeout(() => {
       setFollowUpStage(transition.next);
-      if (transition.next === "request_sent") {
-        setTrace((events) => [...events, {
-          id: crypto.randomUUID(), timestamp: currentTime(), title: "AI sent the preparation email",
-          detail: "The prepared request is shown as sent inside this synthetic demo. No real external email is sent.",
-          status: "complete", kind: "analysis", input: "Prepared information request", output: "Synthetic email sent · awaiting customer",
-        }]);
-      }
-      if (transition.next === "processing_estimate") {
-        setSelectedSourceId(updatedRepairEstimateSource.id);
-        setWorkingSourceIds([updatedRepairEstimateSource.id]);
-      }
       if (transition.next === "customer_replied") {
         setSources((files) => files.some((source) => source.id === rearDevicePhotoSource.id)
           ? files
@@ -858,16 +934,7 @@ export default function Home() {
           status: "complete", kind: "analysis", input: "Customer email + attachment", output: "Damage photo received · estimate pending",
         }]);
       }
-      if (transition.next === "ingesting_photo") {
-        setSelectedSourceId(rearDevicePhotoSource.id);
-        setWorkingSourceIds([rearDevicePhotoSource.id]);
-        setTrace((events) => [...events, {
-          id: crypto.randomUUID(), timestamp: currentTime(), title: "Rear photo ingestion started",
-          detail: "The new customer image was registered and opened for evidence review.",
-          status: "active", kind: "analysis", input: "Rear device photo.jpg", output: "Image review in progress",
-        }]);
-      }
-      if (transition.next === "agent_replying") {
+      if (transition.next === "photo_reviewed") {
         setWorkingSourceIds([]);
         setSources((files) => files.map((source) => source.id === rearDevicePhotoSource.id
           ? { ...source, generatedContent: rearDevicePhotoReview, observationStatus: "generated" }
@@ -875,7 +942,7 @@ export default function Home() {
         setTrace((events) => [...events, {
           id: crypto.randomUUID(), timestamp: currentTime(), title: "Rear photo processed",
           detail: "The full rear view is present. The image does not expose a serial number or IMEI.",
-          status: "complete", kind: "analysis", input: "Rear device photo.jpg", output: "Rear view confirmed · acknowledgement drafting",
+          status: "complete", kind: "analysis", input: "Rear device photo.jpg", output: "Rear view confirmed · acknowledgement ready",
         }]);
       }
       if (transition.next === "paused") {
@@ -883,6 +950,14 @@ export default function Home() {
           id: crypto.randomUUID(), timestamp: currentTime(), title: "AI acknowledgement sent in demo",
           detail: "The agent confirmed receipt of the photo and explained that it is waiting for the revised estimate.",
           status: "complete", kind: "analysis", input: "Customer reply", output: "Synthetic acknowledgement logged",
+        }]);
+      }
+      if (transition.next === "estimate_reviewed") {
+        setWorkingSourceIds([]);
+        setTrace((events) => [...events, {
+          id: crypto.randomUUID(), timestamp: currentTime(), title: "Updated estimate processed",
+          detail: "The revised estimate contains the missing device identifier. All requested evidence is now present for handler review.",
+          status: "complete", kind: "analysis", input: "Updated Repair Estimate.pdf", output: "Identifier confirmed · final acknowledgement ready",
         }]);
       }
       if (transition.next === "ready") {
@@ -946,7 +1021,8 @@ export default function Home() {
                 demoCase={demoCase} state={runState} stage={followUpStage}
                 draftSubject={draftSubject}
                 draftBody={draftBody}
-                receiveUpdatedEstimate={receiveUpdatedEstimate}
+                continueDemo={continueDemo}
+                returnToPortfolio={returnToPortfolio}
                 securityStop={securityStop}
               />
             </div>
@@ -1023,6 +1099,13 @@ function ClaimsOverview({ portfolioOutcomes, resetEntireDemo, selectCase }: {
           <div className="overviewMetric"><strong>16</strong><span>Open claims</span><small>2 available in this demo</small></div>
         </div>
       </header>
+      {portfolioOutcomes.standard && !portfolioOutcomes.injection && (
+        <section className="nextDemoPrompt">
+          <span><ShieldAlert size={18} /></span>
+          <div><small>Case 1 complete</small><strong>Next, test the malicious-document case</strong><p>Open Erik Holm’s claim to see the agent detect a hidden override attempt, stop safely, and preserve the issue for a human specialist.</p></div>
+          <button className="primaryButton" onClick={() => selectCase("injection")}>Open Erik’s case<ArrowRight size={15} /></button>
+        </section>
+      )}
       <section className="claimQueue" aria-label="Claims overview">
         <header>
           <span>Claim and customer</span><span>Description</span><span>Received</span><span>Preparation status</span><span />
@@ -1038,7 +1121,7 @@ function ClaimsOverview({ portfolioOutcomes, resetEntireDemo, selectCase }: {
             <span className="claimOpen">{caseId ? <ArrowRight size={15} /> : <small>Demo only</small>}</span>
           </>;
           return caseId ? (
-            <button data-tour="available-claim" className={"claimRow claimRow-active" + (outcome ? " claimRowOutcome-" + outcome.tone : "")} key={claim.claim} onClick={() => selectCase(caseId)}>{content}</button>
+            <button data-tour={caseId === "standard" ? "recommended-claim" : "available-claim"} className={"claimRow claimRow-active" + (outcome ? " claimRowOutcome-" + outcome.tone : "")} key={claim.claim} onClick={() => selectCase(caseId)}>{content}</button>
           ) : (
             <div className="claimRow claimRow-disabled" key={claim.claim} tabIndex={0}>
               {content}
@@ -1074,12 +1157,22 @@ function ClaimTimeline({ demoCase, state, followUpStage, workingSourceIds, secur
   type TimelineItem = { label: string; done: boolean; active?: boolean; warning?: boolean };
   type TimelineStage = { label: string; status: string; detail: string; items: TimelineItem[] };
   const isInjection = demoCase === demoCases.injection;
-  const order: FollowUpStage[] = ["none", "drafting_request", "request_sent", "customer_typing", "customer_replied", "ingesting_photo", "agent_replying", "paused", "estimate_incoming", "processing_estimate", "ready"];
+  const order: FollowUpStage[] = ["none", "drafting_request", "request_ready", "request_sent", "customer_typing", "customer_replied", "ingesting_photo", "photo_reviewed", "agent_replying", "paused", "estimate_incoming", "processing_estimate", "estimate_reviewed", "final_replying", "ready"];
   const reached = (stage: FollowUpStage) => order.indexOf(followUpStage) >= order.indexOf(stage);
   const reviewed = state === "complete" || followUpStage !== "none";
   const running = state === "running";
   const activeEvidence = running ? workingSourceIds[0] : undefined;
-  const followUpActive = !["none", "paused", "ready"].includes(followUpStage);
+  const checkpointStages: FollowUpStage[] = ["request_ready", "customer_replied", "photo_reviewed", "paused", "estimate_incoming", "estimate_reviewed"];
+  const followUpCheckpoint = checkpointStages.includes(followUpStage);
+  const followUpActive = !["none", "ready", ...checkpointStages].includes(followUpStage);
+  const checkpointDetails: Partial<Record<FollowUpStage, string>> = {
+    request_ready: "Paused before customer email",
+    customer_replied: "New photo waiting for review",
+    photo_reviewed: "Paused before acknowledgement",
+    paused: "Paused before revised estimate",
+    estimate_incoming: "Revised estimate waiting for review",
+    estimate_reviewed: "Paused before final reply",
+  };
 
   const stages: TimelineStage[] = isInjection ? [
     {
@@ -1137,14 +1230,15 @@ function ClaimTimeline({ demoCase, state, followUpStage, workingSourceIds, secur
       ],
     },
     {
-      label: "Customer follow-up", status: followUpStage === "ready" ? "complete" : followUpActive ? "active" : "waiting",
-      detail: followUpStage === "ready" ? "All requested evidence received" : followUpStage === "paused" ? "Waiting for updated estimate" : followUpActive ? "Live customer exchange" : reviewed ? "Request ready to draft" : "Not started",
+      label: "Customer follow-up", status: followUpStage === "ready" ? "complete" : followUpCheckpoint ? "checkpoint" : followUpActive ? "active" : "waiting",
+      detail: followUpStage === "ready" ? "All requested evidence received" : checkpointDetails[followUpStage] ?? (followUpActive ? "Live customer exchange" : reviewed ? "Request ready to draft" : "Not started"),
       items: [
-        { label: "Request prepared", done: reached("request_sent"), active: followUpStage === "drafting_request" },
+        { label: "Request prepared", done: reached("request_ready"), active: followUpStage === "drafting_request" },
         { label: "Preparation request sent", done: reached("request_sent"), active: followUpStage === "request_sent" },
-        { label: "Missing photo processed", done: reached("agent_replying"), active: ["customer_replied", "ingesting_photo"].includes(followUpStage) },
+        { label: "Missing photo processed", done: reached("photo_reviewed"), active: followUpStage === "ingesting_photo" },
         { label: "Acknowledgement drafted", done: reached("paused"), active: followUpStage === "agent_replying" },
-        { label: "Updated estimate processed", done: followUpStage === "ready", active: ["estimate_incoming", "processing_estimate"].includes(followUpStage) },
+        { label: "Updated estimate processed", done: reached("estimate_reviewed"), active: followUpStage === "processing_estimate" },
+        { label: "Final acknowledgement sent", done: followUpStage === "ready", active: followUpStage === "final_replying" },
       ],
     },
     {
@@ -1174,20 +1268,21 @@ function ClaimTimeline({ demoCase, state, followUpStage, workingSourceIds, secur
 }
 
 function CommunicationLog({
-  demoCase, state, stage, draftSubject, draftBody, receiveUpdatedEstimate, securityStop,
+  demoCase, state, stage, draftSubject, draftBody, continueDemo, returnToPortfolio, securityStop,
 }: {
   demoCase: DemoCase;
   state: RunState;
   stage: FollowUpStage;
   draftSubject: string;
   draftBody: string;
-  receiveUpdatedEstimate: () => void;
+  continueDemo: () => void;
+  returnToPortfolio: () => void;
   securityStop: SecurityStop | null;
 }) {
   type MessageTone = "ai" | "human" | "system" | "security";
   type CommunicationMessage = { id: string; actor: string; direction: string; time: string; title: string; body: string; tone: MessageTone; attachment?: string };
   const [expandedMessageId, setExpandedMessageId] = useState<string | null>(null);
-  const order: FollowUpStage[] = ["none", "drafting_request", "request_sent", "customer_typing", "customer_replied", "ingesting_photo", "agent_replying", "paused", "estimate_incoming", "processing_estimate", "ready"];
+  const order: FollowUpStage[] = ["none", "drafting_request", "request_ready", "request_sent", "customer_typing", "customer_replied", "ingesting_photo", "photo_reviewed", "agent_replying", "paused", "estimate_incoming", "processing_estimate", "estimate_reviewed", "final_replying", "ready"];
   const reached = (target: FollowUpStage) => order.indexOf(stage) >= order.indexOf(target);
   const chronological: CommunicationMessage[] = [];
   if (reached("request_sent")) chronological.push(
@@ -1220,8 +1315,50 @@ function CommunicationLog({
         : stage === "agent_replying"
           ? { actor: "AI assistant", label: "Photo processed · drafting an acknowledgement" }
           : stage === "processing_estimate"
-            ? { actor: "AI assistant", label: "Reading the updated estimate and drafting a reply" }
+          ? { actor: "AI assistant", label: "Reading the updated estimate and drafting a reply" }
+          : stage === "final_replying"
+            ? { actor: "AI assistant", label: "Sending the final acknowledgement and preparing handoff" }
             : null;
+
+  const checkpoints: Partial<Record<FollowUpStage, { eyebrow: string; title: string; body: string; action: string }>> = {
+    request_ready: {
+      eyebrow: "Evidence review complete",
+      title: "The agent is ready to contact the customer",
+      body: "It reviewed the claim and all three uploads, identified the exact evidence gaps, and prepared a transparent email. Explore the sources, timeline, and audit log before continuing.",
+      action: "Send synthetic email",
+    },
+    customer_replied: {
+      eyebrow: "Customer reply received",
+      title: "The new photo is waiting for review",
+      body: "Lina’s missing rear-device photo has arrived. The agent has registered the attachment but has not reviewed it yet. Inspect the email and source, then continue when you are ready.",
+      action: "Review new photo",
+    },
+    photo_reviewed: {
+      eyebrow: "New evidence reviewed",
+      title: "The agent is ready to acknowledge the photo",
+      body: "The rear view is now confirmed, while the device identifier is still missing. The agent has everything it needs to send a transparent acknowledgement and explain what remains.",
+      action: "Send acknowledgement",
+    },
+    paused: {
+      eyebrow: "AI acknowledgement received",
+      title: "The first customer exchange is complete",
+      body: "The acknowledgement is now visible in the communication log. Click around as much as you like, then continue to receive Lina’s revised repair estimate.",
+      action: "Receive revised estimate",
+    },
+    estimate_incoming: {
+      eyebrow: "Customer reply received",
+      title: "The revised estimate is waiting for review",
+      body: "The customer’s updated estimate has arrived with a device identifier. The agent has not validated it yet. Inspect the email and document, then continue to start the review.",
+      action: "Review revised estimate",
+    },
+    estimate_reviewed: {
+      eyebrow: "Updated estimate reviewed",
+      title: "All requested evidence is now present",
+      body: "The device identifier is confirmed and the preparation file is complete. The agent is ready to send its final synthetic acknowledgement and hand the organized case back to a human handler.",
+      action: "Send final reply",
+    },
+  };
+  const checkpoint = checkpoints[stage];
 
   return (
     <section className={"communicationLog communicationStage-" + stage} aria-live="polite">
@@ -1235,13 +1372,13 @@ function CommunicationLog({
         </div>
       )}
       {typing && <WritingIndicator label={typing.label} actor={typing.actor} />}
-      {stage === "paused" && (
+      {checkpoint && (
         <div className="logPause">
-          <div><span>Demo pause</span><strong>Explore the claim before the final email arrives</strong><p>The first exchange is complete. Review the sources, timeline, audit log, or case-agent chat, then continue when you are ready.</p></div>
-          <button className="incomingEmailButton" onClick={receiveUpdatedEstimate}><Mail size={16} /><span><strong>New email incoming</strong><small>Updated repair estimate</small></span><ArrowRight size={15} /></button>
+          <div><span>Demo pause · {checkpoint.eyebrow}</span><strong>{checkpoint.title}</strong><p>{checkpoint.body}</p></div>
+          <button className="incomingEmailButton" onClick={continueDemo}><Play size={16} fill="currentColor" /><span><strong>Continue demo</strong><small>{checkpoint.action}</small></span><ArrowRight size={15} /></button>
         </div>
       )}
-      {stage === "ready" && <div className="logReady"><span><Check size={18} /></span><div><small>Preparation complete</small><strong>Ready for handler review</strong><p>All available information is organized; human decisions remain pending.</p></div></div>}
+      {stage === "ready" && <div className="logReady logReadyHandoff"><span><Check size={18} /></span><div><small>Case 1 complete</small><strong>Return to the portfolio for the malicious-attempt case</strong><p>This guided case is complete. Feel free to keep exploring, or return to both cases and open Erik Holm’s claim to see the agent react safely to a malicious hidden instruction.</p></div><button className="primaryButton" onClick={returnToPortfolio}>Back to both cases<ArrowRight size={15} /></button></div>}
       {!messages.length && !typing ? (
         <div className="emptyCommunications"><Mail size={18} /><p>The case agent has not contacted anyone. Communications will appear here with a clear AI or human identity.</p></div>
       ) : <div className="communicationEntries">

@@ -532,7 +532,7 @@ button:disabled { cursor: default; opacity: .78; }
 }
 .backButton:hover { background: var(--soft); color: var(--ink); }
 
-.demoSplit.portfolioView { grid-template-columns: minmax(0, 1fr) 220px; }
+.demoSplit.portfolioView { grid-template-columns: minmax(0, 1fr) 280px; }
 .claimsOverview { flex: 1; min-height: 0; overflow: auto; padding: 26px; }
 .overviewHero {
   align-items: flex-end;
@@ -552,6 +552,12 @@ button:disabled { cursor: default; opacity: .78; }
 .overviewMetric strong { font-size: 28px; grid-row: span 2; line-height: 1; margin-right: 9px; }
 .overviewMetric span { font-size: 9px; font-weight: 750; }
 .overviewMetric small { color: var(--muted); font-size: 7px; margin-top: 2px; }
+.nextDemoPrompt { align-items: center; background: #fff5f2; border: 1px solid #dfb0a8; border-radius: 7px; display: grid; gap: 12px; grid-template-columns: 36px minmax(0, 1fr) auto; margin: 14px 0 10px; padding: 13px 14px; }
+.nextDemoPrompt > span { align-items: center; background: #ffe1dc; border-radius: 50%; color: var(--danger); display: flex; height: 36px; justify-content: center; width: 36px; }
+.nextDemoPrompt small, .nextDemoPrompt strong, .nextDemoPrompt p { display: block; }
+.nextDemoPrompt small { color: var(--danger); font-size: 7px; font-weight: 800; text-transform: uppercase; }
+.nextDemoPrompt strong { font-size: 11px; margin-top: 2px; }
+.nextDemoPrompt p { color: var(--muted); font-size: 8px; line-height: 1.45; margin-top: 3px; }
 .demoNotice { background: #fff5e4; border: 1px solid #ead2a8; color: #79521d; font-size: 9px; margin-bottom: 8px; padding: 8px 10px; }
 .claimQueue { background: white; border: 1px solid var(--line); border-radius: 7px; }
 .claimQueue > header, .claimRow {
@@ -622,10 +628,10 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
   padding: 22px 15px;
   text-align: center;
 }
-.dormantMark { align-items: center; background: #26362f; border: 1px solid #496055; border-radius: 9px; color: #9bd1b5; display: flex; height: 48px; justify-content: center; margin-bottom: 13px; width: 48px; }
-.dormantAgent > span { color: #f06d7f; font-size: 8px; font-weight: 800; text-transform: uppercase; }
-.dormantAgent h2 { font-size: 15px; line-height: 1.25; margin-top: 7px; }
-.dormantAgent p { color: var(--dark-muted); font-size: 8px; line-height: 1.5; margin-top: 7px; max-width: 24ch; }
+.dormantMark { align-items: center; background: #26362f; border: 1px solid #496055; border-radius: 10px; color: #9bd1b5; display: flex; height: 54px; justify-content: center; margin-bottom: 14px; width: 54px; }
+.dormantAgent > span { color: #f06d7f; font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.dormantAgent h2 { font-size: 17px; line-height: 1.25; margin-top: 8px; }
+.dormantAgent p { color: var(--dark-muted); font-size: 9px; line-height: 1.55; margin-top: 8px; max-width: 28ch; }
 .dormantAgent > div:last-child { align-items: center; color: #84938c; display: flex; font-size: 8px; gap: 6px; margin-top: 18px; }
 .dormantAgent > div:last-child i { background: #84938c; border-radius: 50%; height: 6px; width: 6px; }
 
@@ -665,6 +671,9 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
 .timeline-complete .timelineNode, .timeline-ready .timelineNode { background: var(--green); border-color: var(--green); color: white; }
 .timeline-active { border-color: #8bb2c8; box-shadow: inset 0 3px var(--blue); }
 .timeline-active .timelineNode { animation: pulse 1.3s ease-in-out infinite; border-color: var(--blue); color: var(--blue); }
+.timeline-checkpoint { background: #fffaf1; border-color: #dfc498; box-shadow: inset 0 3px #b57b28; }
+.timeline-checkpoint .timelineNode { background: #fff5df; border-color: #b57b28; color: #8b5a16; }
+.timeline-checkpoint > header strong { color: #805116; }
 .timeline-warning { background: #fff7f5; border-color: #d8a39b; box-shadow: inset 0 3px var(--danger); }
 .timeline-warning .timelineNode, .timeline-blocked .timelineNode { background: #fff2f0; border-color: #b84335; color: #b84335; }
 .timeline-ready { background: var(--green-soft); border-color: #acd3bc; box-shadow: inset 0 3px var(--green); }
@@ -716,6 +725,8 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
 .logReady small { color: var(--green); font-size: 7px; font-weight: 800; text-transform: uppercase; }
 .logReady strong { font-size: 11px; margin-top: 2px; }
 .logReady p { color: var(--muted); font-size: 7px; margin-top: 2px; }
+.logReadyHandoff { display: grid; grid-template-columns: 31px minmax(0, 1fr) auto; }
+.logReadyHandoff .primaryButton { flex: 0 0 auto; }
 .messageAttachment { align-items: center; background: rgb(255 255 255 / 72%); border: 1px solid rgb(101 122 112 / 22%); border-radius: 6px; color: #405049; display: flex; font-size: 7px; gap: 5px; margin-top: 8px; padding: 7px 8px; }
 .emptyCommunications { align-items: center; color: var(--muted); display: flex; gap: 9px; padding: 15px; }
 .emptyCommunications p { font-size: 8px; line-height: 1.45; }
@@ -821,7 +832,7 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
 
 @media (max-width: 1120px) {
   .demoSplit.claimView { grid-template-columns: minmax(0, 48%) minmax(0, 52%); }
-  .demoSplit.portfolioView { grid-template-columns: minmax(0, 1fr) 200px; }
+  .demoSplit.portfolioView { grid-template-columns: minmax(0, 1fr) 250px; }
   .uploadGrid { grid-template-columns: 1fr; }
   .sourceWorkspace { grid-template-columns: 176px minmax(0, 1fr); }
 }
@@ -870,6 +881,8 @@ button.claimRow-active.claimRowOutcome-attention:hover { background: #ffedeb; }
   .overviewHeroActions { align-items: flex-start; justify-content: space-between; width: 100%; }
   .overviewResetButton { min-height: 32px; }
   .overviewMetric { border-left: 0; border-top: 1px solid var(--line); padding-left: 0; padding-top: 11px; }
+  .nextDemoPrompt, .logReadyHandoff { align-items: flex-start; grid-template-columns: 36px minmax(0, 1fr); }
+  .nextDemoPrompt .primaryButton, .logReadyHandoff .primaryButton { grid-column: 1 / -1; width: 100%; }
   .claimPanelHeader { flex-wrap: wrap; }
   .backButton { border-right: 0; min-height: 38px; width: 100%; }
   .timelineStages { grid-template-columns: repeat(4, minmax(170px, 1fr)); }

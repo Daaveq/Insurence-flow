@@ -16,14 +16,18 @@ const CODEX_TIMEOUT_MS = 60_000;
 const allowedStages = new Set([
   "none",
   "drafting_request",
+  "request_ready",
   "request_sent",
   "customer_typing",
   "customer_replied",
   "ingesting_photo",
+  "photo_reviewed",
   "agent_replying",
   "paused",
   "estimate_incoming",
   "processing_estimate",
+  "estimate_reviewed",
+  "final_replying",
   "ready",
 ]);
 const allowedReviewStates = new Set(["idle", "running", "complete", "error"]);
@@ -80,14 +84,18 @@ function workflowSummary(caseId: CaseId, stage: string, reviewState: string) {
           ? "The review encountered an error and has not completed."
           : "The case is ready to start and no review has run yet.",
     drafting_request: "An editable missing-information email is being drafted. Nothing has been sent yet.",
+    request_ready: "The fixed evidence review is complete and a transparent missing-information email is ready. The demo is paused for inspection; nothing has been sent.",
     request_sent: "The synthetic preparation request is shown as sent; the demo is pausing before customer activity begins. No real email was sent.",
     customer_typing: "The customer is shown composing a reply in the synthetic communication flow.",
-    customer_replied: "The customer reply and rear-device photo have landed; the demo is pausing before evidence processing begins.",
+    customer_replied: "The customer reply and rear-device photo have landed. The demo is paused before evidence processing begins, and the new photo has not been reviewed yet.",
     ingesting_photo: "The newly supplied rear-device photo is being associated with the claim and reviewed.",
+    photo_reviewed: "The rear-device photo has been reviewed: the rear view is confirmed but no device identifier is visible. The demo is paused before the AI acknowledgement.",
     agent_replying: "The rear-device photo was reviewed and a transparent acknowledgement is being drafted.",
-    paused: "The rear-device photo was acknowledged. The case is waiting for the revised estimate and the demo is paused for handler exploration.",
-    estimate_incoming: "The revised estimate has landed; the demo is pausing before processing begins.",
+    paused: "The rear-device photo was acknowledged. The demo is paused before the revised estimate arrives so the handler can explore the completed first exchange.",
+    estimate_incoming: "The revised estimate has landed. The demo is paused before processing begins, and the new identifier has not yet been validated.",
     processing_estimate: "The revised estimate is being checked and the final customer acknowledgement is being drafted.",
+    estimate_reviewed: "The revised estimate has been checked and the missing device identifier is confirmed. The demo is paused before the final acknowledgement and handler handoff.",
+    final_replying: "The final synthetic acknowledgement and handler handoff are being prepared. No real email is being sent.",
     ready: "The missing photo and revised estimate are organized, communications are summarized, and the file is ready for handler review. All claim decisions remain human.",
   };
   return summaries[stage];

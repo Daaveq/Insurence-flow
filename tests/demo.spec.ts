@@ -111,9 +111,10 @@ test.describe("Claims Copilot demo", () => {
     await expect(overviewGuide.locator("p")).toContainText("actual Codex workspace");
 
     await overviewGuide.getByRole("button", { name: "Next" }).click();
-    await expect(overviewGuide.getByRole("heading", { name: "Choose one of the two demo claims" })).toBeVisible();
-    await expect(overviewGuide.locator("p")).toContainText("Lina’s claim shows successful preparation");
-    await expect(page.locator(".tourSpotlight")).toHaveCount(2);
+    await expect(overviewGuide.getByRole("heading", { name: "Start with Lina’s claim" })).toBeVisible();
+    await expect(overviewGuide.locator("p")).toContainText("Begin with the first claim, Lina Berg");
+    await expect(overviewGuide.locator("p")).toContainText("guide you to Erik’s malicious-document case");
+    await expect(page.locator(".tourSpotlight")).toHaveCount(1);
     await overviewGuide.getByRole("button", { name: "Explore claims" }).click();
 
     await page.getByRole("button", { name: /Lina Berg/ }).click();
@@ -152,6 +153,18 @@ test.describe("Claims Copilot demo", () => {
     }
     await expect(claimGuide).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
+
+    await page.getByRole("button", { name: "All claims" }).click();
+    await page.getByRole("button", { name: /Erik Holm/ }).click();
+    const caseTwoGuide = page.getByRole("dialog", { name: "Claim guide walkthrough" });
+    await expect(caseTwoGuide.getByRole("heading", { name: "Case 2 — malicious document attempt" })).toBeVisible();
+    await expect(caseTwoGuide.locator("p")).toContainText("hidden instruction");
+    await expect(caseTwoGuide.locator(".tourEyebrow")).toContainText("1/1");
+    await expect(caseTwoGuide.getByRole("heading", { name: "The Human Agent view" })).toHaveCount(0);
+    await caseTwoGuide.getByRole("button", { name: "Watch the agent" }).click();
+    await page.getByRole("button", { name: "All claims" }).click();
+    await page.getByRole("button", { name: /Erik Holm/ }).click();
+    await expect(page.getByRole("dialog", { name: "Claim guide walkthrough" })).toHaveCount(0);
   });
 
   test("opens on the claims overview with no agent loaded", async ({ page }) => {
@@ -164,6 +177,7 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.getByAltText("If")).toBeVisible();
     await expect(page.getByRole("region", { name: "Claims overview" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "No claim agent loaded" })).toBeVisible();
+    await expect(page.locator(".backendPanel")).toHaveCSS("width", "280px");
     await expect(page.getByRole("button", { name: /Lina Berg/ })).toBeVisible();
     const erikReadyRow = page.getByRole("button", { name: /Erik Holm/ });
     await expect(erikReadyRow).toContainText("Ready to start");
@@ -376,14 +390,27 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator(".activityStep.stepLatest")).toContainText(
       "Draft the customer email",
     );
+    await expect(page.getByText("The agent is ready to contact the customer")).toBeVisible({ timeout: 12_000 });
+    await expect(page.getByText("AI sent the preparation email")).toHaveCount(0);
+    await expect(page.locator(".timeline-checkpoint")).toContainText("Paused before customer email");
+    await page.getByRole("button", { name: /Continue demo Send synthetic email/ }).click();
     await expect(page.getByText("AI sent the preparation email")).toBeVisible({ timeout: 12_000 });
     await expect(page.locator(".writingIndicator")).toContainText("Customer is writing");
     await expect(page.locator(".communicationEntry").filter({ hasText: "Oh, my bad — I see now that it never uploaded" })).toBeVisible();
     await expect(page.locator('[data-tour="source-rear-device-photo"]')).toContainText("Rear device photo.jpg");
     await expect(page.getByAltText("Preview of Rear device photo.jpg")).toHaveAttribute("src", /rear-device-photo/);
-    await expect(page.locator('[data-tour="source-rear-device-photo"]')).toHaveClass(/sourceWorking/, { timeout: 7_000 });
+    await expect(page.getByText("The new photo is waiting for review")).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator('[data-tour="source-rear-device-photo"]')).not.toHaveClass(/sourceWorking/);
+    await expect(page.locator(".timeline-checkpoint")).toContainText("New photo waiting for review");
+    await page.getByRole("button", { name: /Continue demo Review new photo/ }).click();
+    await expect(page.locator('[data-tour="source-rear-device-photo"]')).toHaveClass(/sourceWorking/);
+    await expect(page.getByText("The agent is ready to acknowledge the photo")).toBeVisible({ timeout: 14_000 });
+    await page.locator('[data-tour="source-rear-device-photo"]').click();
+    await expect(page.locator(".sourceText")).toContainText("Rule: Rear view supplied: Confirmed");
+    await page.getByRole("button", { name: /Continue demo Send acknowledgement/ }).click();
+    await expect(page.locator(".writingIndicator")).toContainText("drafting an acknowledgement");
     await expect(page.locator(".communicationEntry").filter({ hasText: "Thanks, Lina — I’ve received the photo" })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("Explore the claim before the final email arrives")).toBeVisible({ timeout: 22_000 });
+    await expect(page.getByText("The first customer exchange is complete")).toBeVisible({ timeout: 22_000 });
 
     const aiBubble = page.locator(".communication-ai:not(.communicationExpanded)").last();
     const customerBubble = page.locator(".communication-human:not(.communicationExpanded)").first();
@@ -399,9 +426,6 @@ test.describe("Claims Copilot demo", () => {
       "Information needed to prepare your mobile phone claim",
     ]);
     await expect(page.locator(".communicationEntry").first()).toHaveClass(/communicationExpanded/);
-    await page.locator('[data-tour="source-rear-device-photo"]').click();
-    await expect(page.locator(".sourceText")).toContainText("Rule: Rear view supplied: Confirmed");
-
     const expandedPhotoMessage = page.getByRole("button", { name: /Missing photo attached/ });
     await expandedPhotoMessage.click();
     await expect(expandedPhotoMessage).toHaveClass(/communicationExpanded/);
@@ -417,12 +441,20 @@ test.describe("Claims Copilot demo", () => {
     await expandedPhotoMessage.click();
     await expect(expandedPhotoMessage).not.toHaveClass(/communicationExpanded/);
 
-    await page.getByRole("button", { name: /New email incoming/ }).click();
+    await page.getByRole("button", { name: /Continue demo Receive revised estimate/ }).click();
     const incomingEstimate = page.locator(".communicationEntry").filter({ hasText: "Updated estimate attached" }).first();
     await expect(incomingEstimate).toHaveClass(/communicationExpanded/);
     await expect(incomingEstimate).toContainText("They came back to me — here is the updated estimate");
     await expect(page.locator('[data-tour="source-updated-repair-estimate"]')).toContainText("Revised repair estimate with matching device identifier");
-    await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 18_000 });
+    await expect(page.getByText("The revised estimate is waiting for review")).toBeVisible();
+    await expect(page.locator('[data-tour="source-updated-repair-estimate"]')).not.toHaveClass(/sourceWorking/);
+    await page.getByRole("button", { name: /Continue demo Review revised estimate/ }).click();
+    await expect(page.locator('[data-tour="source-updated-repair-estimate"]')).toHaveClass(/sourceWorking/);
+    await expect(page.getByText("All requested evidence is now present", { exact: true })).toBeVisible({ timeout: 14_000 });
+    await expect(page.locator(".timeline-checkpoint")).toContainText("Paused before final reply");
+    await page.getByRole("button", { name: /Continue demo Send final reply/ }).click();
+    await expect(page.locator(".writingIndicator")).toContainText("final acknowledgement");
+    await expect(page.locator(".logReady").getByText("Return to the portfolio for the malicious-attempt case")).toBeVisible({ timeout: 14_000 });
     await expect(page.locator(".communicationEntry").filter({ hasText: "Preparation completed" }).first()).toContainText("Your handler will have the prepared information needed");
     const completedExchange = await page.locator(".communicationEntry header strong").allTextContents();
     expect(completedExchange.slice(0, 3)).toEqual([
@@ -431,11 +463,14 @@ test.describe("Claims Copilot demo", () => {
       "Updated estimate attached",
     ]);
     await expect(page.locator(".communicationEntry").first()).toHaveClass(/communicationExpanded/);
-    await page.getByRole("button", { name: "All claims" }).click();
+    await page.getByRole("button", { name: "Back to both cases" }).click();
+    await expect(page.getByText("Next, test the malicious-document case")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Open Erik’s case/ })).toBeVisible();
     const linaOverviewRow = page.getByRole("button", { name: /Lina Berg/ });
     await expect(linaOverviewRow).toContainText("Ready for handler review");
     await expect(linaOverviewRow.locator(".preparationPill")).toHaveClass(/preparation-complete/);
     await expect(linaOverviewRow).toHaveClass(/claimRowOutcome-complete/);
+    await page.mouse.move(0, 0);
     await expect(linaOverviewRow).toHaveCSS("background-color", "rgb(242, 250, 245)");
     await linaOverviewRow.click();
     await dismissGuide(page);
@@ -444,7 +479,7 @@ test.describe("Claims Copilot demo", () => {
     await page.getByRole("button", { name: "Reset case" }).click();
     await expect(page.getByRole("heading", { name: "Ready for preparation" })).toBeVisible();
     await expect(page.locator(".communicationEntry")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /New email incoming/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Continue demo/ })).toHaveCount(0);
     await expect(page.getByText("Waiting for the handler")).toBeVisible();
     await expect(page.getByText("Hard boundaries")).toBeVisible();
     await page.getByRole("button", { name: /Damage.jpg/ }).first().click();
