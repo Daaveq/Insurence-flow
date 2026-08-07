@@ -275,14 +275,13 @@ function getCaseIntroSteps(caseId: CaseId): TourStep[] {
     return [{
       title: "Case 2 — malicious document attempt",
       body: "This time, a customer document contains a hidden instruction that tries to override the agent and approve the claim. Start preparation to see the safety control detect the attempt, stop automation, preserve the evidence, and send the case to a human specialist without making a claim decision.",
-      target: "handler-side",
-      placement: "right",
+      placement: "center",
     }];
   }
 
   return [{
     title: "Case 1 — guided claim preparation",
-    body: "This case shows the complete preparation experience. The flow pauses after every important event so you can inspect the handler view, sources, and audit log before continuing.",
+    body: "This case shows the complete preparation experience. The flow pauses after selected milestones so you can inspect the handler view, sources, and audit log before continuing.",
     target: "handler-side",
     placement: "right",
   }];
@@ -296,22 +295,15 @@ type DemoMomentContent = {
   working: string;
 };
 
-const checkpointStages: FollowUpStage[] = ["request_ready", "customer_replied", "photo_reviewed", "paused", "estimate_incoming", "estimate_reviewed"];
+const checkpointStages: FollowUpStage[] = ["request_sent", "photo_reviewed", "estimate_reviewed"];
 
 const checkpointMoments: Partial<Record<FollowUpStage, DemoMomentContent>> = {
-  request_ready: {
-    eyebrow: "Evidence review complete",
-    title: "The agent is ready to contact the customer",
-    body: "It reviewed the claim and all three uploads, identified the exact evidence gaps, and prepared a transparent email. Explore the sources, timeline, and audit log before continuing.",
-    action: "Send synthetic email",
-    working: "Writing email",
-  },
-  customer_replied: {
-    eyebrow: "Customer reply received",
-    title: "The new photo is ready for review",
-    body: "Lina’s missing rear-device photo has arrived. Explore the email, attachment, sources, and audit log before the agent continues its review.",
-    action: "Review new photo",
-    working: "Opening and reviewing the new photo",
+  request_sent: {
+    eyebrow: "Customer contacted",
+    title: "The agent has contacted the customer",
+    body: "The transparent email has been sent in this synthetic demo. Explore the files and decisions the agent used to draft it. When you’re ready, click Continue demo.",
+    action: "Continue customer exchange",
+    working: "Waiting for the customer’s response",
   },
   photo_reviewed: {
     eyebrow: "New evidence reviewed",
@@ -319,20 +311,6 @@ const checkpointMoments: Partial<Record<FollowUpStage, DemoMomentContent>> = {
     body: "The rear view is confirmed, while the device identifier is still missing. Explore the evidence and audit trail before the agent continues.",
     action: "Send acknowledgement",
     working: "Writing a customer acknowledgement",
-  },
-  paused: {
-    eyebrow: "First exchange complete",
-    title: "The agent is waiting for the revised estimate",
-    body: "The acknowledgement is visible in the communication log. Explore the claim, then continue when you are ready for Lina’s revised repair estimate.",
-    action: "Receive revised estimate",
-    working: "Monitoring for the customer’s revised estimate",
-  },
-  estimate_incoming: {
-    eyebrow: "Customer reply received",
-    title: "The revised estimate is ready for review",
-    body: "The updated estimate has arrived with a device identifier. Explore the email and document before the agent continues its review.",
-    action: "Review revised estimate",
-    working: "Reading the updated repair estimate",
   },
   estimate_reviewed: {
     eyebrow: "Updated estimate reviewed",
@@ -343,11 +321,18 @@ const checkpointMoments: Partial<Record<FollowUpStage, DemoMomentContent>> = {
   },
 };
 
-const demoDoneMoment: DemoMomentContent = {
-  eyebrow: "Demo done · Case preparation complete",
-  title: "Now explore the malicious document case",
-  body: "When you are ready, use All claims and open Erik Holm’s case yourself. That agent shows how the workflow responds to an untrusted instruction hidden inside a customer document.",
+const linaDemoDoneMoment: DemoMomentContent = {
+  eyebrow: "Demo done",
+  title: "This demo is done",
+  body: "Go and explore Erik’s case to see what happens when a malicious attempt comes through.",
   working: "Case ready for handler review",
+};
+
+const erikDemoDoneMoment: DemoMomentContent = {
+  eyebrow: "Demo done",
+  title: "That was the demo",
+  body: "Feel free to poke around and look at the files more thoroughly. Or go to the overview and click Reset Demo if you want to run it again.",
+  working: "Specialist handoff ready",
 };
 
 function currentTime() {
@@ -569,14 +554,19 @@ function DemoMoment({ moment, onContinue }: {
   moment: DemoMomentContent;
   onContinue?: () => void;
 }) {
+  const [cardVisible, setCardVisible] = useState(true);
+
   return (
     <aside className="demoMoment" aria-live="polite">
       <div className="demoMomentFlash" aria-hidden="true" />
-      <section className="demoMomentCard" aria-label={moment.eyebrow}>
-        <span>{moment.action ? "Demo pause · " : ""}{moment.eyebrow}</span>
-        <h2>{moment.title}</h2>
-        <p>{moment.body}</p>
-      </section>
+      {cardVisible && (
+        <section className="demoMomentCard" aria-label={moment.eyebrow} role="dialog">
+          <span>{moment.action ? "Demo pause · " : ""}{moment.eyebrow}</span>
+          <h2>{moment.title}</h2>
+          <p>{moment.body}</p>
+          <footer><button onClick={() => setCardVisible(false)}>Got it</button></footer>
+        </section>
+      )}
       {moment.action && onContinue && (
         <button className="demoMomentContinue" onClick={onContinue}>
           <span>Continue demo</span><small>{moment.action}</small><ArrowRight size={14} />
@@ -905,68 +895,14 @@ export default function Home() {
     document.querySelector(".sourcePane")?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const receiveUpdatedEstimate = () => {
-    if (followUpStage !== "paused") return;
-    setSources((files) => files.some((source) => source.id === updatedRepairEstimateSource.id)
-      ? files
-      : [...files, updatedRepairEstimateSource]);
-    setSelectedSourceId(updatedRepairEstimateSource.id);
-    setWorkingSourceIds([updatedRepairEstimateSource.id]);
-    setFollowUpStage("estimate_incoming");
-    setTrace((events) => [...events, {
-      id: crypto.randomUUID(),
-      timestamp: currentTime(),
-      title: "Updated estimate email received",
-      detail: "The customer supplied the revised repair estimate with the missing device identifier.",
-      status: "complete",
-      kind: "analysis",
-      input: "Customer email + revised estimate",
-      output: "Estimate queued for agent review",
-    }]);
-  };
-
   const continueDemo = () => {
-    if (followUpStage === "request_ready") {
-      setFollowUpStage("request_sent");
-      setTrace((events) => [...events, {
-        id: crypto.randomUUID(), timestamp: currentTime(), title: "AI sent the preparation email",
-        detail: "The prepared request is shown as sent inside this synthetic demo. No real external email is sent.",
-        status: "complete", kind: "analysis", input: "Prepared information request", output: "Synthetic email sent · awaiting customer",
-      }]);
-      return;
-    }
-
-    if (followUpStage === "customer_replied") {
-      setFollowUpStage("ingesting_photo");
-      setSelectedSourceId(rearDevicePhotoSource.id);
-      setWorkingSourceIds([rearDevicePhotoSource.id]);
-      setTrace((events) => [...events, {
-        id: crypto.randomUUID(), timestamp: currentTime(), title: "Rear photo ingestion started",
-        detail: "The new customer image was registered and opened for evidence review.",
-        status: "active", kind: "analysis", input: "Rear device photo.jpg", output: "Image review in progress",
-      }]);
+    if (followUpStage === "request_sent") {
+      setFollowUpStage("customer_typing");
       return;
     }
 
     if (followUpStage === "photo_reviewed") {
       setFollowUpStage("agent_replying");
-      return;
-    }
-
-    if (followUpStage === "paused") {
-      receiveUpdatedEstimate();
-      return;
-    }
-
-    if (followUpStage === "estimate_incoming") {
-      setFollowUpStage("processing_estimate");
-      setSelectedSourceId(updatedRepairEstimateSource.id);
-      setWorkingSourceIds([updatedRepairEstimateSource.id]);
-      setTrace((events) => [...events, {
-        id: crypto.randomUUID(), timestamp: currentTime(), title: "Updated estimate review started",
-        detail: "The agent opened the revised estimate and began checking the new device identifier against the prepared file.",
-        status: "active", kind: "analysis", input: "Updated Repair Estimate.pdf", output: "Estimate review in progress",
-      }]);
       return;
     }
 
@@ -991,11 +927,13 @@ export default function Home() {
   useEffect(() => {
     if (followUpStage === "drafting_request" && draftIsTyping) return;
     const transitions: Partial<Record<FollowUpStage, { next: FollowUpStage; delay: number }>> = {
-      drafting_request: { next: "request_ready", delay: 650 },
-      request_sent: { next: "customer_typing", delay: 4000 },
+      drafting_request: { next: "request_sent", delay: 650 },
       customer_typing: { next: "customer_replied", delay: 9000 },
+      customer_replied: { next: "ingesting_photo", delay: 4000 },
       ingesting_photo: { next: "photo_reviewed", delay: 9000 },
       agent_replying: { next: "paused", delay: 9000 },
+      paused: { next: "estimate_incoming", delay: 4000 },
+      estimate_incoming: { next: "processing_estimate", delay: 4000 },
       processing_estimate: { next: "estimate_reviewed", delay: 9000 },
       final_replying: { next: "ready", delay: 9000 },
     };
@@ -1003,6 +941,14 @@ export default function Home() {
     if (!transition) return;
     const timeout = window.setTimeout(() => {
       setFollowUpStage(transition.next);
+      if (transition.next === "request_sent") {
+        setWorkingSourceIds([]);
+        setTrace((events) => [...events, {
+          id: crypto.randomUUID(), timestamp: currentTime(), title: "AI sent the preparation email",
+          detail: "The prepared request is shown as sent inside this synthetic demo. No real external email is sent.",
+          status: "complete", kind: "analysis", input: "Prepared information request", output: "Synthetic email sent · awaiting customer",
+        }]);
+      }
       if (transition.next === "customer_replied") {
         setSources((files) => files.some((source) => source.id === rearDevicePhotoSource.id)
           ? files
@@ -1013,6 +959,15 @@ export default function Home() {
           id: crypto.randomUUID(), timestamp: currentTime(), title: "Customer reply received",
           detail: "The missing damage photo arrived, and Lina confirmed that the revised estimate is still coming.",
           status: "complete", kind: "analysis", input: "Customer email + attachment", output: "Damage photo received · estimate pending",
+        }]);
+      }
+      if (transition.next === "ingesting_photo") {
+        setSelectedSourceId(rearDevicePhotoSource.id);
+        setWorkingSourceIds([rearDevicePhotoSource.id]);
+        setTrace((events) => [...events, {
+          id: crypto.randomUUID(), timestamp: currentTime(), title: "Rear photo ingestion started",
+          detail: "The new customer image was registered and opened for evidence review.",
+          status: "active", kind: "analysis", input: "Rear device photo.jpg", output: "Image review in progress",
         }]);
       }
       if (transition.next === "photo_reviewed") {
@@ -1031,6 +986,27 @@ export default function Home() {
           id: crypto.randomUUID(), timestamp: currentTime(), title: "AI acknowledgement sent in demo",
           detail: "The agent confirmed receipt of the photo and explained that it is waiting for the revised estimate.",
           status: "complete", kind: "analysis", input: "Customer reply", output: "Synthetic acknowledgement logged",
+        }]);
+      }
+      if (transition.next === "estimate_incoming") {
+        setSources((files) => files.some((source) => source.id === updatedRepairEstimateSource.id)
+          ? files
+          : [...files, updatedRepairEstimateSource]);
+        setSelectedSourceId(updatedRepairEstimateSource.id);
+        setWorkingSourceIds([updatedRepairEstimateSource.id]);
+        setTrace((events) => [...events, {
+          id: crypto.randomUUID(), timestamp: currentTime(), title: "Updated estimate email received",
+          detail: "The customer supplied the revised repair estimate with the missing device identifier.",
+          status: "complete", kind: "analysis", input: "Customer email + revised estimate", output: "Estimate queued for agent review",
+        }]);
+      }
+      if (transition.next === "processing_estimate") {
+        setSelectedSourceId(updatedRepairEstimateSource.id);
+        setWorkingSourceIds([updatedRepairEstimateSource.id]);
+        setTrace((events) => [...events, {
+          id: crypto.randomUUID(), timestamp: currentTime(), title: "Updated estimate review started",
+          detail: "The agent opened the revised estimate and began checking the new device identifier against the prepared file.",
+          status: "active", kind: "analysis", input: "Updated Repair Estimate.pdf", output: "Estimate review in progress",
         }]);
       }
       if (transition.next === "estimate_reviewed") {
@@ -1153,14 +1129,17 @@ export default function Home() {
           sourceCount={sources.length}
           setStepIndex={setClaimTourStep}
           label="Claim guide"
-          finishLabel="Watch the agent"
+          finishLabel={claimTourVariant === "case" ? "Got it" : "Watch the agent"}
         />
       ) : null}
       {workspaceView === "claim" && checkpointMoments[followUpStage] && (
         <DemoMoment key={followUpStage} moment={checkpointMoments[followUpStage]!} onContinue={continueDemo} />
       )}
       {workspaceView === "claim" && followUpStage === "ready" && (
-        <DemoMoment key="demo-done" moment={demoDoneMoment} />
+        <DemoMoment key="lina-demo-done" moment={linaDemoDoneMoment} />
+      )}
+      {workspaceView === "claim" && runState === "complete" && securityStop && (
+        <DemoMoment key="erik-demo-done" moment={erikDemoDoneMoment} />
       )}
     </div>
   );
@@ -1395,7 +1374,7 @@ function CommunicationLog({
         <div><MessageCircle size={15} /><strong>Communication log</strong></div>
         <span>{messages.length ? "Newest first · " + messages.length + " entries" : state === "complete" ? "Preparing first message" : "No agent communication yet"}</span>
       </header>
-      {["drafting_request", "request_ready"].includes(stage) && (
+      {stage === "drafting_request" && (
         <div className="logDraftCard">
           <header><span className="emailIcon"><Mail size={17} /></span><div><small>Automatic preparation</small><strong>AI is drafting the customer email</strong></div></header>
         </div>
