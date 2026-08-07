@@ -421,6 +421,7 @@ function DemoTour({
   setStepIndex,
   label,
   finishLabel,
+  delayMs = 0,
 }: {
   steps: TourStep[];
   stepIndex: number;
@@ -428,8 +429,10 @@ function DemoTour({
   setStepIndex: (step: number) => void;
   label: string;
   finishLabel: string;
+  delayMs?: number;
 }) {
   const step = steps[stepIndex];
+  const [isVisible, setIsVisible] = useState(delayMs === 0);
   const [spotlightRects, setSpotlightRects] = useState<Array<{
     left: number;
     top: number;
@@ -439,7 +442,13 @@ function DemoTour({
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    if (!step) return;
+    if (delayMs === 0) return;
+    const timeout = window.setTimeout(() => setIsVisible(true), delayMs);
+    return () => window.clearTimeout(timeout);
+  }, [delayMs]);
+
+  useEffect(() => {
+    if (!step || !isVisible) return;
 
     let frame = 0;
 
@@ -494,9 +503,9 @@ function DemoTour({
       window.removeEventListener("scroll", scheduleUpdate, true);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [sourceCount, step, stepIndex, setStepIndex, steps.length]);
+  }, [isVisible, sourceCount, step, stepIndex, setStepIndex, steps.length]);
 
-  if (!step) return null;
+  if (!step || !isVisible) return null;
 
   return (
     <div className="tourLayer">
@@ -1150,6 +1159,7 @@ export default function Home() {
           setStepIndex={setOverviewTourStep}
           label="Overview guide"
           finishLabel="Explore claims"
+          delayMs={2000}
         />
       ) : demoCase ? (
         <DemoTour

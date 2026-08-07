@@ -80,7 +80,7 @@ const mockResult = {
 
 async function dismissGuide(page: Page) {
   const skip = page.getByRole("button", { name: "Skip guide" });
-  if (await skip.isVisible().catch(() => false)) await skip.click();
+  if (await skip.waitFor({ state: "visible", timeout: 2500 }).then(() => true).catch(() => false)) await skip.click();
 }
 
 async function openDemo(page: Page, caseName = "Lina Berg") {
@@ -96,6 +96,10 @@ test.describe("Claims Copilot demo", () => {
     await page.goto("/");
 
     const overviewGuide = page.getByRole("dialog", { name: "Overview guide walkthrough" });
+    await expect(page.getByRole("region", { name: "Claims overview" })).toBeVisible();
+    await expect(overviewGuide).toHaveCount(0);
+    await page.waitForTimeout(1000);
+    await expect(overviewGuide).toHaveCount(0);
     await expect(overviewGuide.getByRole("heading", { name: "Welcome to Claims Copilot" })).toBeVisible();
     await expect(overviewGuide.locator("p")).toHaveText("This demo shows how case-specific AI agents can prepare insurance claims while human handlers retain every decision that requires judgment.");
     await expect(overviewGuide).toHaveCSS("width", "440px");
