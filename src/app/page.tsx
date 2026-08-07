@@ -40,6 +40,9 @@ type SecurityStop = {
   sourceId: string;
 };
 
+const ANALYSIS_TIMEOUT_MS = 90_000;
+const ANALYSIS_TIMEOUT_MESSAGE = "Oops.. seems like the agent got stuck, this is the risk with playing with real agents. If you see this message. Give the page a refresh and try again!";
+
 type SourceFile = {
   id: string;
   name: string;
@@ -805,6 +808,14 @@ export default function Home() {
     const controller = new AbortController();
     analysisRequest.current = controller;
     const version = ++requestVersion.current;
+    const timeoutId = window.setTimeout(() => {
+      if (version !== requestVersion.current || analysisRequest.current !== controller) return;
+      controller.abort();
+      setError(ANALYSIS_TIMEOUT_MESSAGE);
+      setRunState("error");
+      setWorkingSourceIds([]);
+      setTypingSourceId(null);
+    }, ANALYSIS_TIMEOUT_MS);
     setRunState("running");
     setPortfolioOutcomes((current) => {
       const next = { ...current };
@@ -921,6 +932,7 @@ export default function Home() {
       setError(caughtError instanceof Error ? caughtError.message : "Unexpected analysis error.");
       setRunState("error");
     } finally {
+      window.clearTimeout(timeoutId);
       if (analysisRequest.current === controller) analysisRequest.current = null;
     }
   };

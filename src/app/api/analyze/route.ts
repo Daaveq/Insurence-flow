@@ -169,6 +169,7 @@ export async function POST(request: Request) {
   );
 
   let streamClosed = false;
+  let stopActiveChild: (() => void) | null = null;
   const stream = new ReadableStream({
     start(controller) {
       let buffer = "";
@@ -367,6 +368,7 @@ export async function POST(request: Request) {
       const stopChild = () => {
         if (!child.killed) child.kill("SIGTERM");
       };
+      stopActiveChild = stopChild;
       request.signal.addEventListener("abort", stopChild, { once: true });
 
       child.stdout.on("data", (chunk: Buffer) => {
@@ -610,6 +612,7 @@ export async function POST(request: Request) {
       child.on("close", (code) => {
         if (streamClosed) return;
         request.signal.removeEventListener("abort", stopChild);
+        stopActiveChild = null;
         analysisInProgress = false;
 
         if (code !== 0 || !resultReceived) {
@@ -629,6 +632,8 @@ export async function POST(request: Request) {
       });
     },
     cancel() {
+      stopActiveChild?.();
+      stopActiveChild = null;
       streamClosed = true;
       analysisInProgress = false;
     },

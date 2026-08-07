@@ -273,6 +273,26 @@ test.describe("Claims Copilot demo", () => {
     expect(viewportFits).toBe(true);
   });
 
+  test("fails safely when a live agent run gets stuck", async ({ page }) => {
+    await page.addInitScript(() => {
+      const nativeSetTimeout = window.setTimeout.bind(window);
+      window.setTimeout = ((handler: TimerHandler, timeout?: number, ...args: unknown[]) =>
+        nativeSetTimeout(handler, timeout === 90_000 ? 25 : timeout, ...args)) as typeof window.setTimeout;
+    });
+    await page.route("**/api/analyze", async (route) => {
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+      await route.abort();
+    });
+
+    await openDemo(page);
+    await page.getByRole("button", { name: "Start preparation" }).first().click();
+
+    await expect(page.getByRole("heading", { name: "Analysis failed" })).toBeVisible();
+    await expect(page.getByText("Oops.. seems like the agent got stuck, this is the risk with playing with real agents. If you see this message. Give the page a refresh and try again!")).toBeVisible();
+    await expect(page.getByText("Agent running", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Working with now")).toHaveCount(0);
+  });
+
   test("drafts an email, follows the latest step, and resets", async ({ page }) => {
     test.setTimeout(110_000);
     let releaseResponse!: () => void;
