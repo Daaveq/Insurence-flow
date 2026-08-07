@@ -112,9 +112,9 @@ test.describe("Claims Copilot demo", () => {
 
     await overviewGuide.getByRole("button", { name: "Next" }).click();
     await expect(overviewGuide.getByRole("heading", { name: "Start with Lina’s claim" })).toBeVisible();
-    await expect(overviewGuide.locator("p")).toContainText("Begin with the first claim, Lina Berg");
-    await expect(overviewGuide.locator("p")).toContainText("guide you to Erik’s malicious-document case");
-    await expect(page.locator(".tourSpotlight")).toHaveCount(1);
+    await expect(overviewGuide.locator("p")).toContainText("Lina’s claim shows successful preparation");
+    await expect(overviewGuide.locator("p")).toContainText("Begin with Lina Berg");
+    await expect(page.locator(".tourSpotlight")).toHaveCount(2);
     await overviewGuide.getByRole("button", { name: "Explore claims" }).click();
 
     await page.getByRole("button", { name: /Lina Berg/ }).click();
@@ -390,27 +390,34 @@ test.describe("Claims Copilot demo", () => {
     await expect(page.locator(".activityStep.stepLatest")).toContainText(
       "Draft the customer email",
     );
-    await expect(page.getByText("The agent is ready to contact the customer")).toBeVisible({ timeout: 12_000 });
+    const firstPause = page.locator(".demoMomentCard").filter({ hasText: "Evidence review complete" });
+    await expect(firstPause).toContainText("The agent is ready to contact the customer", { timeout: 12_000 });
+    await expect(page.locator(".writingIndicator")).toContainText("Writing email");
     await expect(page.getByText("AI sent the preparation email")).toHaveCount(0);
-    await expect(page.locator(".timeline-checkpoint")).toContainText("Paused before customer email");
+    await expect(page.locator(".timeline-checkpoint, .logPause")).toHaveCount(0);
+    await page.locator('[data-tour="source-rules"]').click();
+    await expect(page.getByText("G-01 — Decision boundary")).toBeVisible();
     await page.getByRole("button", { name: /Continue demo Send synthetic email/ }).click();
+    await expect(firstPause).toHaveCount(0);
     await expect(page.getByText("AI sent the preparation email")).toBeVisible({ timeout: 12_000 });
     await expect(page.locator(".writingIndicator")).toContainText("Customer is writing");
     await expect(page.locator(".communicationEntry").filter({ hasText: "Oh, my bad — I see now that it never uploaded" })).toBeVisible();
     await expect(page.locator('[data-tour="source-rear-device-photo"]')).toContainText("Rear device photo.jpg");
     await expect(page.getByAltText("Preview of Rear device photo.jpg")).toHaveAttribute("src", /rear-device-photo/);
-    await expect(page.getByText("The new photo is waiting for review")).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator('[data-tour="source-rear-device-photo"]')).not.toHaveClass(/sourceWorking/);
-    await expect(page.locator(".timeline-checkpoint")).toContainText("New photo waiting for review");
+    await expect(page.locator(".demoMomentCard")).toContainText("The new photo is ready for review", { timeout: 15_000 });
+    await expect(page.locator(".writingIndicator")).toContainText("Opening and reviewing the new photo");
+    await expect(page.locator('[data-tour="source-rear-device-photo"]')).toHaveClass(/sourceWorking/);
     await page.getByRole("button", { name: /Continue demo Review new photo/ }).click();
     await expect(page.locator('[data-tour="source-rear-device-photo"]')).toHaveClass(/sourceWorking/);
-    await expect(page.getByText("The agent is ready to acknowledge the photo")).toBeVisible({ timeout: 14_000 });
+    await expect(page.locator(".demoMomentCard")).toContainText("The agent is ready to acknowledge the photo", { timeout: 14_000 });
+    await expect(page.locator(".writingIndicator")).toContainText("Writing a customer acknowledgement");
     await page.locator('[data-tour="source-rear-device-photo"]').click();
     await expect(page.locator(".sourceText")).toContainText("Rule: Rear view supplied: Confirmed");
     await page.getByRole("button", { name: /Continue demo Send acknowledgement/ }).click();
     await expect(page.locator(".writingIndicator")).toContainText("drafting an acknowledgement");
     await expect(page.locator(".communicationEntry").filter({ hasText: "Thanks, Lina — I’ve received the photo" })).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText("The first customer exchange is complete")).toBeVisible({ timeout: 22_000 });
+    await expect(page.locator(".demoMomentCard")).toContainText("The agent is waiting for the revised estimate", { timeout: 22_000 });
+    await expect(page.locator(".writingIndicator")).toContainText("Monitoring for the customer’s revised estimate");
 
     const aiBubble = page.locator(".communication-ai:not(.communicationExpanded)").last();
     const customerBubble = page.locator(".communication-human:not(.communicationExpanded)").first();
@@ -446,15 +453,20 @@ test.describe("Claims Copilot demo", () => {
     await expect(incomingEstimate).toHaveClass(/communicationExpanded/);
     await expect(incomingEstimate).toContainText("They came back to me — here is the updated estimate");
     await expect(page.locator('[data-tour="source-updated-repair-estimate"]')).toContainText("Revised repair estimate with matching device identifier");
-    await expect(page.getByText("The revised estimate is waiting for review")).toBeVisible();
-    await expect(page.locator('[data-tour="source-updated-repair-estimate"]')).not.toHaveClass(/sourceWorking/);
+    await expect(page.locator(".demoMomentCard")).toContainText("The revised estimate is ready for review");
+    await expect(page.locator(".writingIndicator")).toContainText("Reading the updated repair estimate");
+    await expect(page.locator('[data-tour="source-updated-repair-estimate"]')).toHaveClass(/sourceWorking/);
     await page.getByRole("button", { name: /Continue demo Review revised estimate/ }).click();
     await expect(page.locator('[data-tour="source-updated-repair-estimate"]')).toHaveClass(/sourceWorking/);
-    await expect(page.getByText("All requested evidence is now present", { exact: true })).toBeVisible({ timeout: 14_000 });
-    await expect(page.locator(".timeline-checkpoint")).toContainText("Paused before final reply");
+    await expect(page.locator(".demoMomentCard")).toContainText("All requested evidence is now present", { timeout: 14_000 });
+    await expect(page.locator(".writingIndicator")).toContainText("Writing the final acknowledgement");
     await page.getByRole("button", { name: /Continue demo Send final reply/ }).click();
     await expect(page.locator(".writingIndicator")).toContainText("final acknowledgement");
-    await expect(page.locator(".logReady").getByText("Return to the portfolio for the malicious-attempt case")).toBeVisible({ timeout: 14_000 });
+    await expect(page.locator(".logReady").getByText("Ready for handler review")).toBeVisible({ timeout: 14_000 });
+    const demoDone = page.locator(".demoMomentCard").filter({ hasText: "Demo done" });
+    await expect(demoDone).toContainText("Now explore the malicious document case");
+    await expect(demoDone).toContainText("use All claims and open Erik Holm’s case yourself");
+    await expect(page.getByRole("button", { name: /Back to both cases|Open Erik’s case/ })).toHaveCount(0);
     await expect(page.locator(".communicationEntry").filter({ hasText: "Preparation completed" }).first()).toContainText("Your handler will have the prepared information needed");
     const completedExchange = await page.locator(".communicationEntry header strong").allTextContents();
     expect(completedExchange.slice(0, 3)).toEqual([
@@ -463,9 +475,9 @@ test.describe("Claims Copilot demo", () => {
       "Updated estimate attached",
     ]);
     await expect(page.locator(".communicationEntry").first()).toHaveClass(/communicationExpanded/);
-    await page.getByRole("button", { name: "Back to both cases" }).click();
-    await expect(page.getByText("Next, test the malicious-document case")).toBeVisible();
-    await expect(page.getByRole("button", { name: /Open Erik’s case/ })).toBeVisible();
+    await page.getByRole("button", { name: "All claims" }).click();
+    await expect(page.locator(".demoMoment")).toHaveCount(0);
+    await expect(page.getByText(/Next.*malicious-document case/i)).toHaveCount(0);
     const linaOverviewRow = page.getByRole("button", { name: /Lina Berg/ });
     await expect(linaOverviewRow).toContainText("Ready for handler review");
     await expect(linaOverviewRow.locator(".preparationPill")).toHaveClass(/preparation-complete/);
