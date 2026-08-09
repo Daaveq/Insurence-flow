@@ -1,0 +1,8 @@
+[Unit]
+Description=Health check and recovery for IF Claims Copilot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart="/home/david/IF Insurence flow/.deploy/bin/healthcheck-production.sh"

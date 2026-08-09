@@ -6,7 +6,30 @@ The case and customer data are synthetic. Public If guidance inspired the termin
 
 ## Public Demo
 
-The supervised VPS deployment is available at [co-pilot-ai.daviddemos.com](https://co-pilot-ai.daviddemos.com). The Next.js production server and its named Cloudflare Tunnel run as separate user-level systemd services defined under `ops/`; both are enabled for reboot startup and failure recovery. Tunnel credentials remain outside the repository.
+The supervised VPS deployment is available at [co-pilot-ai.daviddemos.com](https://co-pilot-ai.daviddemos.com). The Next.js production server and its named Cloudflare Tunnel run as independent user-level systemd services defined under `ops/`; both are enabled for reboot startup and automatic recovery. Tunnel credentials remain outside the repository.
+
+## Production deployment
+
+Install or refresh the user services once:
+
+```bash
+./ops/install-production-services.sh
+```
+
+Deploy the committed `main` revision:
+
+```bash
+./ops/deploy-production.sh main
+```
+
+The deployment script pauses automated recovery during deployment, builds an immutable release under `.deploy/releases/`, switches `.deploy/current` only after a successful build, restarts the application, rolls back automatically if the local health check fails, verifies the public hostname, and resumes monitoring. It retains the three newest releases. Do not run `next build` directly in the directory used by a running production server.
+
+`if-claims-copilot-health.timer` checks both the local application and public hostname every minute. Each check loads the home page, all JavaScript and CSS bundles referenced by it, and the fixed-source API. It restarts the application when the origin is unhealthy and restarts the tunnel independently when only public access is unhealthy. Inspect it with:
+
+```bash
+systemctl --user status if-claims-copilot-health.timer
+journalctl --user -u if-claims-copilot-health.service --since today
+```
 
 ## What The Demo Shows
 

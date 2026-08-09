@@ -1,13 +1,12 @@
 [Unit]
 Description=Cloudflare Tunnel for IF Claims Copilot demo
-After=network-online.target if-claims-copilot.service
+After=network-online.target
 Wants=network-online.target
-Requires=if-claims-copilot.service
 
 [Service]
 Type=simple
 ExecStart=/usr/bin/cloudflared --no-autoupdate --config "/home/david/IF Insurence flow/ops/cloudflared-config.yml" tunnel run
-Restart=on-failure
+Restart=always
 RestartSec=5
 TimeoutStopSec=20
 

@@ -10,7 +10,7 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 - Stack: Next.js 16.2.12, React 19.2.4, TypeScript, plain CSS, Lucide icons, and Playwright.
 - AI runtime: project-pinned Codex CLI 0.146.0 using the existing local ChatGPT login; no OpenAI API key or direct API integration.
 - GitHub repository: `git@github.com:Daaveq/Insurence-flow.git`.
-- Published branch: `main`; `feat/guided-demo-pauses` has been merged and remains as the recoverable task branch.
+- Published stable branch: `main`; `fix/reliable-deployment` contains the installed VPS deployment hardening and has not been merged into `main`.
 - Public demo: `https://co-pilot-ai.daviddemos.com`, served from the VPS through the named `if-claims-copilot` Cloudflare Tunnel.
 
 ## Product Experience
@@ -79,8 +79,10 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 - The live Playwright analysis test passes using the real project-pinned Codex CLI and GPT-5.6 Luna with the receipt and damage images attached, and verifies the schema-approved email draft reaches the front end. Direct authenticated chat-route checks pass for Lina and Erik; Erik refused the hidden approval instruction and reported the preserved specialist handoff.
 - The latest verified standard-case Luna browser run completed in 32.7 seconds on this host; runtime may vary.
 - After the 2026-08-04 host restart, Playwright system libraries were unavailable and `install-deps` required an interactive sudo password. Static browser tests were reverified with non-root libraries unpacked under `/tmp/playwright-libs.N2AEkE`; a future clean host should install Playwright Chromium dependencies normally.
-- The VPS production server on port 3001 is managed by the enabled user-level `if-claims-copilot.service`, defined in `ops/if-claims-copilot.service`. User lingering is enabled, so the service starts after VPS reboot and restarts after failure without an interactive login.
-- The former TryCloudflare quick tunnel is retired. The named Cloudflare Tunnel uses `ops/cloudflared-config.yml` and the enabled user-level `if-claims-copilot-tunnel.service`; credentials remain untracked under `~/.cloudflared/`. Both services start after VPS reboot and restart after failure. The tunnel unit `Requires` the app unit, so a deployment that stops the app also stops the tunnel cleanly; deployments must explicitly start both services afterward.
+- The VPS production server on port 3001 is managed by the enabled user-level `if-claims-copilot.service`, defined in `ops/if-claims-copilot.service`. User lingering is enabled, so the service starts after VPS reboot and always restarts after exit without an interactive login. It runs from the immutable release selected by `.deploy/current`, not from the mutable repository build directory.
+- Production releases are created with `ops/deploy-production.sh`. The script builds a committed revision in a new `.deploy/releases/` directory, pauses monitoring during the switch, atomically updates `.deploy/current`, restarts the app, rolls back on failed local health, verifies the public hostname, resumes monitoring, and retains the three newest releases. This prevents a running Next.js process from serving HTML whose referenced assets were overwritten by a later build.
+- The former TryCloudflare quick tunnel is retired. The named Cloudflare Tunnel uses `ops/cloudflared-config.yml` and the enabled user-level `if-claims-copilot-tunnel.service`; credentials remain untracked under `~/.cloudflared/`. The tunnel is supervised independently from the app, remains running across application deployments, and always restarts after exit.
+- `if-claims-copilot-health.timer` runs every minute. Its deep check loads the home page, every referenced JavaScript and CSS asset, and the fixed-source API locally and publicly. It restarts the app for origin failures and the tunnel for public-only failures. Runtime monitor scripts are installed under `.deploy/bin/` so Git branch switches cannot remove them.
 - The public HTTPS home page and source API return HTTP 200, the hostname survives a controlled tunnel restart, a real streamed Luna analysis completes with a schema-valid guarded result, and the bounded case-chat route returns a valid reply through the public hostname.
 
 ## Operating Rules
