@@ -10,7 +10,7 @@ This file is the durable working memory for the IF Insurance Flow project. Keep 
 - Stack: Next.js 16.2.12, React 19.2.4, TypeScript, plain CSS, Lucide icons, and Playwright.
 - AI runtime: project-pinned Codex CLI 0.146.0 using the existing local ChatGPT login; no OpenAI API key or direct API integration.
 - GitHub repository: `git@github.com:Daaveq/Insurence-flow.git`.
-- Published stable branch: `main`; `fix/reliable-deployment` contains the installed VPS deployment hardening and has not been merged into `main`.
+- Published stable branch: `main`, including the VPS deployment hardening; `fix/reliable-deployment` remains as the recoverable task branch.
 - Public demo: `https://co-pilot-ai.daviddemos.com`, served from the VPS through the named `if-claims-copilot` Cloudflare Tunnel.
 
 ## Product Experience
